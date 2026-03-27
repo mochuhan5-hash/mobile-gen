@@ -5,7 +5,7 @@
 
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI } from "@google/genai";
+import OpenAI from "openai";
 import { 
   Scan, 
   Calendar, 
@@ -38,8 +38,12 @@ import {
 } from "lucide-react";
 import { SCENARIOS, ScenarioId } from './types';
 
-// Initialize Gemini AI
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY || "",
+  baseURL: process.env.OPENAI_BASE_URL || "http://143.198.222.179:8317/v1",
+  dangerouslyAllowBrowser: true,
+});
 
 interface Message {
   role: 'user' | 'model';
@@ -101,11 +105,7 @@ export default function App() {
     setIsLoading(true);
 
     try {
-      const chat = genAI.chats.create({
-        model: "gemini-3-flash-preview",
-        config: {
-          responseMimeType: "application/json",
-          systemInstruction: `你是一个专业的医院问诊台咨询员。你的目标是识别用户的问题类型，并提供最合适的辅助组件或后续推荐。
+      const systemPrompt = `你是一个专业的医院问诊台咨询员。你的目标是识别用户的问题类型，并提供最合适的辅助组件或后续推荐。
           
           主要的就诊任务流：
           1. 预约挂号 (appointment): 包含分诊、选医生、支付挂号费。
@@ -141,7 +141,7 @@ export default function App() {
           }
 
           组件数据结构：
-          - medical: { "symptoms": ["症状1"], "recommendation": "科室名" }
+          - medical: { "symptoms": ["症状1"], "recommendation": "科室名", "confidence": 0.9 }
           - appointment: { "department": "科室名", "doctors": [{"name": "医生名", "time": "时间", "fee": "金额"}] }
           - examination: { "items": [{"name": "检查项1", "location": "地点"}] }
           - recommendation: { "type": "checkin", "title": "前往签到", "target": "呼吸内科" }
@@ -151,26 +151,35 @@ export default function App() {
           如果用户刚完成挂号，请在 recommendation 字段中推荐签到。
           如果用户完成了一个任务（如支付、检查、挂号），请务必在 recommendation 字段中主动推荐下一个逻辑步骤。
           例如：
-          - 完成挂号 -> 推荐“前往签到”
-          - 完成就诊 -> 推荐“诊后缴费”
-          - 完成缴费 -> 推荐“前往检查”或“支付取药”
-          - 完成检查 -> 推荐“查询报告”
+          - 完成挂号 -> 推荐"前往签到"
+          - 完成就诊 -> 推荐"诊后缴费"
+          - 完成缴费 -> 推荐"前往检查"或"支付取药"
+          - 完成检查 -> 推荐"查询报告"
           如果用户询问检查，请提供 examination 组件。
           如果用户询问报告，请提供 report 组件。
-          如果用户询问取药，请提供 meds 组件。`
-        },
-        history: messages.map(m => ({
-          role: m.role,
-          parts: [{ text: m.text }]
+          如果用户询问取药，请提供 meds 组件。`;
+
+      const chatMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+        { role: "system", content: systemPrompt },
+        ...messages.map(m => ({
+          role: (m.role === 'model' ? 'assistant' : 'user') as 'assistant' | 'user',
+          content: m.text
         })),
+        { role: "user", content: text }
+      ];
+
+      const completion = await openai.chat.completions.create({
+        model: "gpt-5.4",
+        messages: chatMessages,
+        response_format: { type: "json_object" },
       });
 
-      const result = await chat.sendMessage({ message: text });
+      const resultText = completion.choices[0]?.message?.content || "{}";
       let responseData;
       try {
-        responseData = JSON.parse(result.text || "{}");
+        responseData = JSON.parse(resultText);
       } catch (e) {
-        responseData = { text: result.text, component: null };
+        responseData = { text: resultText, component: null };
       }
       
       const newMessage: Message = { 
