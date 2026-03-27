@@ -1,0 +1,5 @@
+{
+  "name": "智慧医疗导诊终端",
+  "description": "基于任务导向的医院自助服务终端界面，涵盖从预检到离场的全流程情境。",
+  "requestFramePermissions": []
+}
