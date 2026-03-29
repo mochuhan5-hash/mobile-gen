@@ -14,7 +14,7 @@ export type ScenarioId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 export type AppView = 'business' | 'library';
 export type TipLevel = 'info' | 'warning' | 'emergency';
 export type RecommendationType = 'checkin' | 'payment' | 'examination' | 'report' | 'meds';
-export type AIMessageComponentType = 'medical' | 'process' | 'location' | 'tip' | 'recommendation';
+export type AIMessageComponentType = 'medical' | 'process' | 'location' | 'tip' | 'recommendation' | 'resume_task';
 export type AITaskType = 'appointment' | 'checkin' | 'payment' | 'examination' | 'report' | 'meds' | 'medical' | 'process' | 'location' | 'tip';
 export type AIInlineComponentType = Exclude<AITaskType, 'appointment' | 'payment' | 'checkin' | 'report' | 'meds' | 'examination'> | 'appointment' | 'payment' | 'checkin' | 'report' | 'meds' | 'examination';
 
@@ -53,6 +53,26 @@ export interface RecommendationData {
   type: RecommendationType;
   title: string;
   target: string;
+}
+
+export interface ResumeTaskData {
+  title: string;
+  target: string;
+  task: AITask;
+}
+
+export interface TaskCompletionFollowUp {
+  label: string;
+  icon: 'location' | 'print';
+  targetId?: ScenarioId;
+}
+
+export interface TaskCompletionSummary {
+  title: string;
+  subtitle: string;
+  primaryActionLabel: string;
+  notice: string;
+  followUps: TaskCompletionFollowUp[];
 }
 
 export interface DoctorOption {
@@ -95,6 +115,7 @@ export type AIComponentData =
   | LocationData
   | TipData
   | RecommendationData
+  | ResumeTaskData
   | AppointmentData
   | ExaminationData
   | CheckinData

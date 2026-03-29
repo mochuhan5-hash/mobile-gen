@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 
 import {
   buildAiContextSummary,
+  buildResumeTaskComponent,
+  buildTaskCompletionSummary,
   createJourneyContext,
   createTaskFromComponent,
   getInitialTaskStep,
-  buildExitRecommendationPrompt,
   recordTaskClose,
   recordTaskCompletion,
   recordTaskOpen,
@@ -19,12 +20,18 @@ interface MockResponseData {
     type: 'medical' | 'appointment' | 'checkin' | 'payment' | 'report' | 'meds' | 'examination' | 'process' | 'location' | 'tip';
     data: Record<string, unknown> & { currentStep?: number };
   } | null;
+  recommendation?: {
+    type: 'checkin' | 'payment' | 'report' | 'meds' | 'examination';
+    title: string;
+    target: string;
+  } | null;
 }
 
 interface MockMessage {
   role: 'model';
   text: string;
   component?: MockResponseData['component'];
+  recommendation?: MockResponseData['recommendation'];
 }
 
 function applyAiResponse(responseData: MockResponseData, options?: { autoOpenTask?: boolean }) {
@@ -36,6 +43,7 @@ function applyAiResponse(responseData: MockResponseData, options?: { autoOpenTas
     role: 'model',
     text: 'mock',
     component: responseData.component ?? undefined,
+    recommendation: responseData.recommendation ?? undefined,
   };
 
   if (responseData.component && (options?.autoOpenTask ?? true)) {
@@ -122,7 +130,7 @@ test('journey context should track open, step change, selection and completion a
   assert.match(summary, /completedTasks/);
 });
 
-test('exiting a task should build background recommendation prompt with nested context', () => {
+test('exiting a task should build dedicated resume-task component payload', () => {
   const openedTask = createTaskFromComponent({
     type: 'appointment',
     data: { department: '呼吸内科' },
@@ -136,11 +144,42 @@ test('exiting a task should build background recommendation prompt with nested c
   });
   context = recordTaskClose(context);
 
-  const prompt = buildExitRecommendationPrompt(context, openedTask.title);
-  assert.match(prompt, /我刚刚中途中断了预约挂号/);
-  assert.match(prompt, /当前就诊上下文/);
-  assert.match(prompt, /王主任/);
-  assert.match(prompt, /recommendation/);
-  assert.match(prompt, /推荐卡片/);
-  assert.match(prompt, /不要自动开始任务/);
+  const resumeComponent = buildResumeTaskComponent(context);
+  assert.equal(resumeComponent?.type, 'resume_task');
+  assert.equal(resumeComponent?.data.title, '继续预约挂号');
+  assert.equal(resumeComponent?.data.target, '返回刚才流程');
+  assert.equal(resumeComponent?.data.task.type, 'appointment');
+  assert.equal((resumeComponent?.data.task.data as Record<string, unknown>).department, '呼吸内科');
+});
+
+test('completion flow should preserve recommendation payload in model message', () => {
+  const result = applyAiResponse({
+    recommendation: {
+      type: 'checkin',
+      title: '前往签到',
+      target: '呼吸内科',
+    },
+  }, {
+    autoOpenTask: false,
+  });
+
+  assert.equal(result.message?.recommendation?.type, 'checkin');
+  assert.equal(result.message?.recommendation?.title, '前往签到');
+  assert.equal(result.activeTask, null);
+});
+
+test('task completion summary should expose default completion screen copy', () => {
+  const summary = buildTaskCompletionSummary({
+    type: 'appointment',
+    title: '预约挂号',
+    data: {},
+  });
+
+  assert.equal(summary.title, '你当前的主要事项已完成');
+  assert.equal(summary.subtitle, '祝你早日康复');
+  assert.equal(summary.primaryActionLabel, '完成并退出');
+  assert.equal(summary.notice, '请记得取走您的卡片和票据');
+  assert.equal(summary.followUps.length, 2);
+  assert.equal(summary.followUps[0]?.label, '查看后续门诊地点');
+  assert.equal(summary.followUps[1]?.label, '打印凭条');
 });

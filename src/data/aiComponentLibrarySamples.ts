@@ -1,4 +1,4 @@
-import type { AIComponentPayload, AIMessageComponentType, AITask } from '../types';
+import type { AIComponentPayload, AIMessageComponentType, AITask, TaskCompletionSummary } from '../types';
 
 export const messageCardSamples: Array<{ title: string; component: AIComponentPayload<AIMessageComponentType> }> = [
   {
@@ -53,6 +53,22 @@ export const messageCardSamples: Array<{ title: string; component: AIComponentPa
         title: '前往签到候诊',
         target: '呼吸内科门诊',
       },
+    },
+  },
+];
+
+export const taskCompletionSamples: Array<{ title: string; summary: TaskCompletionSummary }> = [
+  {
+    title: '任务完成态',
+    summary: {
+      title: '你当前的主要事项已完成',
+      subtitle: '祝你早日康复',
+      primaryActionLabel: '完成并退出',
+      notice: '请记得取走您的卡片和票据',
+      followUps: [
+        { label: '查看后续门诊地点', icon: 'location', targetId: 7 },
+        { label: '打印凭条', icon: 'print' },
+      ],
     },
   },
 ];

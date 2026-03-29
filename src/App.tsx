@@ -36,11 +36,13 @@ import {
 } from 'lucide-react';
 import TopTabs from './components/navigation/TopTabs';
 import AIMessageRenderer from './components/ai/AIMessageRenderer';
+import AITaskCompletionCard from './components/ai/AITaskCompletionCard';
 import AITaskRenderer from './components/ai/AITaskRenderer';
 import AIComponentLibraryPage from './pages/AIComponentLibraryPage';
 import {
   buildAiContextSummary,
-  buildExitRecommendationPrompt,
+  buildResumeTaskComponent,
+  buildTaskCompletionSummary,
   createJourneyContext,
   getInitialTaskStep,
   recordRecommendation,
@@ -50,7 +52,7 @@ import {
   recordTaskSelection,
   recordTaskStepChange,
 } from './aiTaskFlow';
-import { SCENARIOS, type AppView, type AITask, type JourneyContext, type Message, ScenarioId } from './types';
+import { SCENARIOS, type AppView, type AITask, type JourneyContext, type Message, type RecommendationData, type TaskCompletionSummary, ScenarioId } from './types';
 
 const DEFAULT_OPENAI_BASE_URL = 'http://143.198.222.179:8317/v1';
 
@@ -86,7 +88,9 @@ export default function App() {
   const [taskStep, setTaskStep] = useState(0);
   const [history, setHistory] = useState<TaskRecord[]>([]);
   const [journeyContext, setJourneyContext] = useState<JourneyContext>(() => createJourneyContext());
-  
+  const [taskCompletionSummary, setTaskCompletionSummary] = useState<TaskCompletionSummary | null>(null);
+  const [pendingCompletionRecommendation, setPendingCompletionRecommendation] = useState<RecommendationData | null>(null);
+
   // AI Chat State
   const [messages, setMessages] = useState<Message[]>([
     { role: 'model', text: '您好！我是医院问诊台咨询员。您可以向我咨询：\n1. 症状分诊（如：肚子疼挂什么科）\n2. 流程指引（如：如何取药）\n3. 位置导航（如：抽血室在哪）\n4. 紧急求助（如：感觉头晕不舒服）' }
@@ -104,6 +108,11 @@ export default function App() {
   }, [messages]);
 
   const handleTaskOpen = (task: AITask, fromRecommendation = false) => {
+    setTaskCompletionSummary(null);
+    setPendingCompletionRecommendation(null);
+    if (task.type !== 'medical') {
+      setMedicalRequirement('');
+    }
     setActiveTask(task);
     setTaskStep(getInitialTaskStep(task.data));
     setJourneyContext((prev: JourneyContext) => recordTaskOpen(prev, task, fromRecommendation));
@@ -117,15 +126,19 @@ export default function App() {
     }
 
     const nextContext = recordTaskClose(journeyContext);
+    const resumeComponent = buildResumeTaskComponent(nextContext);
+
     setJourneyContext(nextContext);
     setActiveTask(null);
     setTaskStep(0);
 
-    void sendMessage(buildExitRecommendationPrompt(nextContext, activeTask.title), {
-      appendUserMessage: false,
-      autoOpenTask: false,
-      contextOverride: nextContext,
-    });
+    if (resumeComponent) {
+      setMessages((prev: Message[]) => [...prev, {
+        role: 'model',
+        text: `您已中断当前任务，可随时继续${activeTask.title}。`,
+        component: resumeComponent,
+      }]);
+    }
   };
 
   const handleTaskStepChange = (value: number | ((prev: number) => number)) => {
@@ -240,6 +253,9 @@ export default function App() {
       };
 
       setMessages(prev => [...prev, newMessage]);
+      if (taskCompletionSummary) {
+        setPendingCompletionRecommendation(responseData.recommendation ?? null);
+      }
       setJourneyContext((prev: JourneyContext) => recordRecommendation(prev, responseData.recommendation));
 
       if (responseData.component && autoOpenTask) {
@@ -295,9 +311,10 @@ export default function App() {
 
     setHistory(prev => [newRecord, ...prev]);
     setJourneyContext(nextContext);
+    setPendingCompletionRecommendation(null);
+    setTaskCompletionSummary(buildTaskCompletionSummary(completedTask));
     setActiveTask(null);
     setTaskStep(0);
-    setCurrentId(1);
 
     setMessages((prev: Message[]) => [...prev, {
       role: 'model',
@@ -307,6 +324,7 @@ export default function App() {
     void sendMessage(`我已完成${title}，请只推荐我当前最适合开始的下一个任务，不要自动开始任务。`, {
       appendUserMessage: false,
       contextOverride: nextContext,
+      autoOpenTask: false,
     });
   };
 
@@ -338,6 +356,33 @@ export default function App() {
                       setMedicalRequirement={setMedicalRequirement}
                       completeTask={completeTask}
                       recordSelection={handleTaskSelection}
+                    />
+                  ) : taskCompletionSummary ? (
+                    <AITaskCompletionCard
+                      summary={{
+                        ...taskCompletionSummary,
+                        primaryActionLabel: pendingCompletionRecommendation ? '开启下一任务' : taskCompletionSummary.primaryActionLabel,
+                      }}
+                      onPrimaryAction={() => {
+                        if (pendingCompletionRecommendation) {
+                          handleTaskOpen({
+                            type: pendingCompletionRecommendation.type,
+                            title: pendingCompletionRecommendation.title,
+                            data: pendingCompletionRecommendation,
+                          } as AITask, true);
+                          return;
+                        }
+
+                        setTaskCompletionSummary(null);
+                        setPendingCompletionRecommendation(null);
+                        setHasIdentity(false);
+                        setCurrentId(1);
+                      }}
+                      onFollowUp={(targetId) => {
+                        if (typeof targetId === 'number') {
+                          setCurrentId(targetId as ScenarioId);
+                        }
+                      }}
                     />
                   ) : (
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white card-shadow">
@@ -389,7 +434,12 @@ export default function App() {
                                 : 'rounded-tl-none border border-gray-100 bg-white text-gray-800'
                             }`}>
                               <div className="whitespace-pre-wrap">{msg.text}</div>
-                              {msg.role === 'model' && <AIMessageRenderer component={msg.component ?? null} />}
+                              {msg.role === 'model' && (
+                                <AIMessageRenderer
+                                  component={msg.component ?? null}
+                                  onOpenTask={(task) => handleTaskOpen(task, msg.component?.type === 'recommendation')}
+                                />
+                              )}
                               {msg.role === 'model' && msg.recommendation && (
                                 <AIMessageRenderer
                                   component={{ type: 'recommendation', data: msg.recommendation }}
@@ -574,7 +624,7 @@ export default function App() {
                     { dept: '全科门诊', doctor: '普通号', time: '今日下午 13:30', fee: '¥20', tags: ['普通号'] },
                     { dept: '急诊内科', doctor: '值班医生', time: '即刻就诊', fee: '¥30', tags: ['急诊'] }
                   ].map((item, i) => (
-                    <button key={i} className="task-card group flex flex-col gap-4 border-l-4 border-l-hospital-blue p-5 text-left sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+                    <div key={i} className="task-card group flex flex-col gap-4 border-l-4 border-l-hospital-blue p-5 text-left sm:p-6 lg:flex-row lg:items-center lg:justify-between">
                       <div className="flex items-start gap-4 sm:gap-5">
                         <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-hospital-blue sm:h-16 sm:w-16">
                           <Stethoscope size={28} />
@@ -595,7 +645,7 @@ export default function App() {
                           立即挂号
                         </button>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
 
@@ -864,57 +914,18 @@ export default function App() {
 
       case 9:
         return (
-          <div className="flex w-full flex-col gap-8 py-6 text-center sm:gap-10 sm:py-8">
-            <div className="flex flex-col items-center gap-5 sm:gap-6">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: 'spring', damping: 12 }}
-                className="flex h-28 w-28 items-center justify-center rounded-full bg-green-500 text-white shadow-2xl shadow-green-200 sm:h-36 sm:w-36"
-              >
-                <CheckCircle2 size={64} />
-              </motion.div>
-              <div>
-                <h1 className="mb-3 text-3xl font-bold sm:text-5xl">你当前的主要事项已完成</h1>
-                <p className="text-base text-gray-500 sm:text-lg">祝你早日康复</p>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-4 rounded-3xl bg-white p-5 card-shadow sm:gap-5 sm:p-6">
-              <div className="text-sm font-bold uppercase tracking-[0.2em] text-gray-400 sm:text-base">后续建议</div>
-              <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                <button onClick={() => setCurrentId(7)} className="group flex items-center justify-between rounded-2xl bg-gray-50 p-4 transition-colors hover:bg-blue-50 sm:p-5">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <MapPin className="text-hospital-blue" size={20} />
-                    <span className="text-base font-bold sm:text-lg">查看后续门诊地点</span>
-                  </div>
-                  <ChevronRight className="text-gray-300 group-hover:text-hospital-blue" />
-                </button>
-                <button className="group flex items-center justify-between rounded-2xl bg-gray-50 p-4 transition-colors hover:bg-blue-50 sm:p-5">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <Printer className="text-hospital-blue" size={20} />
-                    <span className="text-base font-bold sm:text-lg">打印凭条</span>
-                  </div>
-                  <ChevronRight className="text-gray-300 group-hover:text-hospital-blue" />
-                </button>
-              </div>
-            </div>
-
-            <div className="mt-1 flex flex-col gap-4 sm:gap-5">
-              <button
-                onClick={() => {
-                  setHasIdentity(false);
-                  setCurrentId(1);
-                }}
-                className="btn-primary text-lg sm:text-xl"
-              >
-                完成并退出
-              </button>
-              <div className="flex items-center justify-center gap-2 rounded-2xl bg-orange-50 px-4 py-3 text-sm font-bold text-orange-500 sm:gap-3 sm:text-base">
-                <AlertCircle size={18} /> 请记得取走您的卡片和票据
-              </div>
-            </div>
-          </div>
+          <AITaskCompletionCard
+            summary={buildTaskCompletionSummary({ type: 'tip', title: '完成离场', data: {} })}
+            onPrimaryAction={() => {
+              setHasIdentity(false);
+              setCurrentId(1);
+            }}
+            onFollowUp={(targetId) => {
+              if (typeof targetId === 'number') {
+                setCurrentId(targetId as ScenarioId);
+              }
+            }}
+          />
         );
 
       default:

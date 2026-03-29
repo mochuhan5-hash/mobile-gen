@@ -3,7 +3,6 @@ import {
   AlertCircle,
   CheckCircle2,
   ClipboardCheck,
-  CreditCard,
   FileText,
   Headset,
   Info,
@@ -120,6 +119,17 @@ export default function AITaskRenderer({
                 ))}
               </div>
             </div>
+
+            {!preview && (
+              <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4 sm:pt-6">
+                <button onClick={safeComplete} className="flex-1 rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition-all active:scale-95 sm:text-lg">
+                  确认挂号
+                </button>
+                <button onClick={safeClose} className="rounded-2xl border-2 border-gray-200 px-6 py-4 text-base font-bold text-gray-600 transition-all hover:bg-gray-50 sm:text-lg">
+                  暂不挂号
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -301,8 +311,7 @@ export default function AITaskRenderer({
                       symptoms: (activeTask.data as MedicalData).symptoms ?? [],
                     });
                     setMedicalRequirement((activeTask.data as MedicalData).recommendation);
-                    setCurrentId(3);
-                    setActiveTask(null);
+                    completeTask?.(activeTask.type, activeTask.title);
                   }}
                   className="flex-1 rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition-all active:scale-95 sm:text-lg"
                 >
@@ -357,7 +366,7 @@ export default function AITaskRenderer({
                     下一步
                   </button>
                 ) : (
-                  <button onClick={safeClose} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-green-600 py-4 text-base font-bold text-white shadow-lg transition-all active:scale-95 sm:text-lg">
+                  <button onClick={safeComplete} className="flex flex-1 items-center justify-center gap-2 rounded-2xl bg-green-600 py-4 text-base font-bold text-white shadow-lg transition-all active:scale-95 sm:text-lg">
                     完成任务
                   </button>
                 )}

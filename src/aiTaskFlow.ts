@@ -6,6 +6,8 @@ import type {
   CompletedTaskRecord,
   JourneyContext,
   RecommendationData,
+  ResumeTaskData,
+  TaskCompletionSummary,
 } from './types';
 
 const TASK_TITLES: Record<AITaskType, string> = {
@@ -196,6 +198,40 @@ export function buildAiContextSummary(context: JourneyContext) {
   return JSON.stringify(context, null, 2);
 }
 
-export function buildExitRecommendationPrompt(context: JourneyContext, title: string) {
-  return `我刚刚中途中断了${title}，请基于下面的当前就诊上下文，推荐我现在最适合继续的下一个任务。请务必返回 recommendation 推荐卡片，而不只是文字说明；如果适合继续当前中断流程，也请用 recommendation 表达。不要自动开始任务。\n\n当前就诊上下文(JSON)：\n${buildAiContextSummary(context)}`;
+export function buildResumeTaskComponent(context: JourneyContext): { type: 'resume_task'; data: ResumeTaskData } | null {
+  const snapshot = context.activeTaskSnapshot;
+  if (!snapshot) return null;
+
+  return {
+    type: 'resume_task',
+    data: {
+      title: `继续${snapshot.title}`,
+      target: '返回刚才流程',
+      task: {
+        type: snapshot.type,
+        title: snapshot.title,
+        data: snapshot.data,
+      },
+    },
+  };
+}
+
+export function buildTaskCompletionSummary(_task: AITask): TaskCompletionSummary {
+  return {
+    title: '你当前的主要事项已完成',
+    subtitle: '祝你早日康复',
+    primaryActionLabel: '完成并退出',
+    notice: '请记得取走您的卡片和票据',
+    followUps: [
+      {
+        label: '查看后续门诊地点',
+        icon: 'location',
+        targetId: 7,
+      },
+      {
+        label: '打印凭条',
+        icon: 'print',
+      },
+    ],
+  };
 }
