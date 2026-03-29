@@ -29,6 +29,7 @@ interface AITaskRendererProps {
   setCurrentId?: (id: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9) => void;
   setMedicalRequirement?: (value: string) => void;
   completeTask?: (type: string, title: string) => void;
+  recordSelection?: (selection: Record<string, unknown>) => void;
   preview?: boolean;
 }
 
@@ -40,6 +41,7 @@ export default function AITaskRenderer({
   setCurrentId,
   setMedicalRequirement,
   completeTask,
+  recordSelection,
   preview = false,
 }: AITaskRendererProps) {
   if (!activeTask) return null;
@@ -86,7 +88,17 @@ export default function AITaskRenderer({
                   { name: '王主任', time: '14:00', fee: '¥50' },
                   { name: '李医生', time: '15:30', fee: '¥20' },
                 ]).map((doc, i) => (
-                  <div key={i} className="flex items-center justify-between gap-3 rounded-2xl border-2 border-gray-100 bg-white p-4 sm:p-5">
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => recordSelection?.({
+                      componentType: 'appointment',
+                      doctorName: doc.name,
+                      time: doc.time,
+                      fee: doc.fee,
+                    })}
+                    className="flex items-center justify-between gap-3 rounded-2xl border-2 border-gray-100 bg-white p-4 text-left sm:p-5"
+                  >
                     <div className="flex items-center gap-3 sm:gap-4">
                       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-hospital-blue sm:h-14 sm:w-14 sm:text-xl">
                         {doc.name[0]}
@@ -97,7 +109,7 @@ export default function AITaskRenderer({
                       </div>
                     </div>
                     <div className="text-xl font-bold text-orange-500 sm:text-2xl">{doc.fee}</div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -251,6 +263,12 @@ export default function AITaskRenderer({
               <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4 sm:pt-6">
                 <button
                   onClick={() => {
+                    recordSelection?.({
+                      componentType: 'medical',
+                      action: 'choose_recommendation',
+                      recommendation: (activeTask.data as MedicalData).recommendation,
+                      symptoms: (activeTask.data as MedicalData).symptoms ?? [],
+                    });
                     setMedicalRequirement((activeTask.data as MedicalData).recommendation);
                     setCurrentId(3);
                     setActiveTask(null);

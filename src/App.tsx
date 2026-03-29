@@ -38,8 +38,19 @@ import TopTabs from './components/navigation/TopTabs';
 import AIMessageRenderer from './components/ai/AIMessageRenderer';
 import AITaskRenderer from './components/ai/AITaskRenderer';
 import AIComponentLibraryPage from './pages/AIComponentLibraryPage';
-import { getInitialTaskStep } from './aiTaskFlow';
-import { SCENARIOS, type AppView, type AITask, type Message, ScenarioId } from './types';
+import {
+  buildAiContextSummary,
+  buildExitRecommendationPrompt,
+  createJourneyContext,
+  getInitialTaskStep,
+  recordRecommendation,
+  recordTaskClose,
+  recordTaskCompletion,
+  recordTaskOpen,
+  recordTaskSelection,
+  recordTaskStepChange,
+} from './aiTaskFlow';
+import { SCENARIOS, type AppView, type AITask, type JourneyContext, type Message, ScenarioId } from './types';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -65,6 +76,7 @@ export default function App() {
   const [activeTask, setActiveTask] = useState<AITask | null>(null);
   const [taskStep, setTaskStep] = useState(0);
   const [history, setHistory] = useState<TaskRecord[]>([]);
+  const [journeyContext, setJourneyContext] = useState<JourneyContext>(() => createJourneyContext());
   
   // AI Chat State
   const [messages, setMessages] = useState<Message[]>([
@@ -82,17 +94,55 @@ export default function App() {
     scrollToBottom();
   }, [messages]);
 
+  const handleTaskOpen = (task: AITask, fromRecommendation = false) => {
+    setActiveTask(task);
+    setTaskStep(getInitialTaskStep(task.data));
+    setJourneyContext((prev: JourneyContext) => recordTaskOpen(prev, task, fromRecommendation));
+  };
+
+  const handleTaskClose = () => {
+    if (!activeTask) {
+      setActiveTask(null);
+      setTaskStep(0);
+      return;
+    }
+
+    const nextContext = recordTaskClose(journeyContext);
+    setJourneyContext(nextContext);
+    setActiveTask(null);
+    setTaskStep(0);
+
+    void sendMessage(buildExitRecommendationPrompt(nextContext, activeTask.title), {
+      appendUserMessage: false,
+      autoOpenTask: false,
+      contextOverride: nextContext,
+    });
+  };
+
+  const handleTaskStepChange = (value: number | ((prev: number) => number)) => {
+    setTaskStep((prev: number) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      setJourneyContext((current: JourneyContext) => recordTaskStepChange(current, next));
+      return next;
+    });
+  };
+
+  const handleTaskSelection = (selection: Record<string, unknown>) => {
+    setJourneyContext((prev: JourneyContext) => recordTaskSelection(prev, selection));
+  };
+
   const handleSendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
     await sendMessage(inputValue.trim());
     setInputValue("");
   };
 
-  const sendMessage = async (text: string, options?: { appendUserMessage?: boolean; autoOpenTask?: boolean }) => {
+  const sendMessage = async (text: string, options?: { appendUserMessage?: boolean; autoOpenTask?: boolean; contextOverride?: JourneyContext }) => {
     if (isLoading) return;
 
     const appendUserMessage = options?.appendUserMessage ?? true;
     const autoOpenTask = options?.autoOpenTask ?? appendUserMessage;
+    const contextForPrompt = options?.contextOverride ?? journeyContext;
     if (appendUserMessage) {
       setMessages((prev: Message[]) => [...prev, { role: 'user', text }]);
     }
@@ -146,8 +196,11 @@ export default function App() {
           - 用户完成检查 -> 文本说明已完成，并在 recommendation 中推荐查报告。
           - 不要把“签到 + 缴费 + 检查”在一次回复里一起安排。`;
 
+      const contextPrompt = `当前就诊上下文(JSON)：\n${buildAiContextSummary(contextForPrompt)}`;
+
       const chatMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
+        { role: "system", content: contextPrompt },
         ...messages.map(m => ({
           role: (m.role === 'model' ? 'assistant' : 'user') as 'assistant' | 'user',
           content: m.text
@@ -177,6 +230,7 @@ export default function App() {
       };
 
       setMessages(prev => [...prev, newMessage]);
+      setJourneyContext((prev: JourneyContext) => recordRecommendation(prev, responseData.recommendation));
 
       if (responseData.component && autoOpenTask) {
         const task = {
@@ -203,8 +257,7 @@ export default function App() {
                             : '温馨提示'
         } as AITask;
 
-        setActiveTask(task);
-        setTaskStep(getInitialTaskStep(task.data));
+        handleTaskOpen(task);
       }
     } catch (error) {
       console.error("AI Error:", error);
@@ -216,6 +269,7 @@ export default function App() {
   };
 
   const completeTask = (type: string, title: string) => {
+    const completedTask = activeTask ?? { type, title, data: {} } as AITask;
     const newRecord: TaskRecord = {
       id: Math.random().toString(36).substr(2, 9),
       type,
@@ -223,7 +277,10 @@ export default function App() {
       status: 'completed',
       timestamp: Date.now()
     };
+    const nextContext = recordTaskCompletion(journeyContext, completedTask);
+
     setHistory(prev => [newRecord, ...prev]);
+    setJourneyContext(nextContext);
     setActiveTask(null);
     setTaskStep(0);
     setCurrentId(1);
@@ -235,6 +292,7 @@ export default function App() {
 
     void sendMessage(`我已完成${title}，请只推荐我当前最适合开始的下一个任务，不要自动开始任务。`, {
       appendUserMessage: false,
+      contextOverride: nextContext,
     });
   };
 
@@ -254,11 +312,18 @@ export default function App() {
                     <AITaskRenderer
                       activeTask={activeTask}
                       taskStep={taskStep}
-                      setTaskStep={setTaskStep}
-                      setActiveTask={setActiveTask}
+                      setTaskStep={handleTaskStepChange}
+                      setActiveTask={(task) => {
+                        if (task) {
+                          handleTaskOpen(task);
+                        } else {
+                          void handleTaskClose();
+                        }
+                      }}
                       setCurrentId={setCurrentId}
                       setMedicalRequirement={setMedicalRequirement}
                       completeTask={completeTask}
+                      recordSelection={handleTaskSelection}
                     />
                   ) : (
                     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white card-shadow">
@@ -314,10 +379,7 @@ export default function App() {
                               {msg.role === 'model' && msg.recommendation && (
                                 <AIMessageRenderer
                                   component={{ type: 'recommendation', data: msg.recommendation }}
-                                  onOpenTask={(task) => {
-                                    setActiveTask(task);
-                                    setTaskStep(getInitialTaskStep(task.data));
-                                  }}
+                                  onOpenTask={(task) => handleTaskOpen(task, true)}
                                 />
                               )}
                             </div>
@@ -379,13 +441,13 @@ export default function App() {
                     { title: '诊后缴费', desc: '待缴费 1 笔 (¥152.00)', icon: CreditCard, target: 4 },
                     { title: '完成检查', desc: '血常规 / 胸部 X 光', icon: Search, target: 5 },
                     { title: '取报告', desc: '血常规报告已出', icon: FileText, target: 6 },
-                    { title: '支付取药', desc: '待支付 1 笔 (¥45.00)', icon: ClipboardCheck, target: 1, taskType: 'meds' }
+                    { title: '支付取药', desc: '待支付 1 笔 (¥45.00)', icon: ClipboardCheck, target: 1, taskType: 'meds' as const }
                   ].map((task, i) => (
                     <button
                       key={i}
                       onClick={() => {
                         if (task.taskType) {
-                          setActiveTask({
+                          handleTaskOpen({
                             type: task.taskType,
                             data: {},
                             title: task.title

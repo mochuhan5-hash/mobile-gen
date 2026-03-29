@@ -97,6 +97,42 @@ export interface AITask {
   title: string;
 }
 
+export type JourneyStage = 'pre_visit' | 'in_progress' | 'post_visit' | 'finished';
+export type JourneyAction = 'open' | 'step_change' | 'close' | 'complete' | 'recommend' | 'select';
+
+export interface JourneyTaskSnapshot {
+  type: AITaskType;
+  title: string;
+  step: number;
+  data: AIComponentData;
+  status: 'in_progress';
+  lastUpdatedAt: number;
+}
+
+export interface CompletedTaskRecord {
+  type: string;
+  title: string;
+  status: 'completed';
+  timestamp: number;
+}
+
+export interface ComponentUsageRecord {
+  componentType: AITaskType;
+  taskType: AITaskType;
+  action: JourneyAction;
+  step: number;
+  selection?: Record<string, unknown>;
+  timestamp: number;
+}
+
+export interface JourneyContext {
+  currentJourneyStage: JourneyStage;
+  activeTaskSnapshot: JourneyTaskSnapshot | null;
+  completedTasks: CompletedTaskRecord[];
+  componentUsage: ComponentUsageRecord[];
+  lastRecommendation: RecommendationData | null;
+}
+
 export const SCENARIOS: Scenario[] = [
   { id: 1, title: '首次触达', type: '任务识别首页', icon: Scan },
   { id: 2, title: '到院签到', type: '签到任务页', icon: ClipboardCheck },
