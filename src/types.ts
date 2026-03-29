@@ -87,14 +87,32 @@ export interface AppointmentData {
   title?: string;
 }
 
+export interface PaymentLineItem {
+  name: string;
+  /** 金额数值（元），用于展示 ¥ xx.xx */
+  price: number;
+}
+
+export interface PaymentData {
+  lineItems?: PaymentLineItem[];
+  /** 未传时按 lineItems 合计 */
+  total?: number;
+  /** 右上角状态文案，默认「待支付」 */
+  statusLabel?: string;
+}
+
 export interface ExaminationItem {
   name: string;
-  location: string;
+  location?: string;
+  /** 已完成 / 待检查 展示样式 */
+  status?: 'completed' | 'pending';
 }
 
 export interface ExaminationData {
   items?: ExaminationItem[];
   title?: string;
+  /** 卡片抬头，如「检验科（2楼）」 */
+  departmentLabel?: string;
 }
 
 /** 签到候诊 / 叫号展示（可选，缺省使用占位数据） */
@@ -117,6 +135,7 @@ export type AIComponentData =
   | RecommendationData
   | ResumeTaskData
   | AppointmentData
+  | PaymentData
   | ExaminationData
   | CheckinData
   | Record<string, unknown>;

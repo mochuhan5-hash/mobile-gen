@@ -2,14 +2,16 @@ import { motion } from 'motion/react';
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronRight,
   ClipboardCheck,
+  ClipboardList,
+  CreditCard,
   FileText,
   Headset,
   Info,
   MapPin,
   Navigation,
   RotateCcw,
-  Search,
   Stethoscope,
 } from 'lucide-react';
 import type {
@@ -17,10 +19,19 @@ import type {
   AppointmentData,
   CheckinData,
   ExaminationData,
+  ExaminationItem,
   MedicalData,
+  PaymentData,
   ProcessData,
   TipData,
 } from '../../types';
+
+/** 费用/检验区块内的浅紫顶栏（仅色块，不再包一层带边框的内层卡片） */
+const MED_CARD_HEADER = 'bg-[#F3F4FF]';
+
+function formatYuan(amount: number): string {
+  return `¥ ${amount.toFixed(2)}`;
+}
 
 interface AITaskRendererProps {
   activeTask: AITask | null;
@@ -60,18 +71,15 @@ export default function AITaskRenderer({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl"
     >
-      <div
-        className={`flex items-center justify-between border-b p-4 text-white sm:p-5 ${
-          activeTask.type === 'checkin' ? 'bg-[#6338f1]' : 'bg-hospital-blue'
-        }`}
-      >
+      <div className="flex items-center justify-between border-b bg-hospital-blue p-4 text-white sm:p-5">
         <div className="flex items-center gap-2.5 sm:gap-3">
           <div className="rounded-lg bg-white/20 p-2">
             {activeTask.type === 'medical' && <Stethoscope size={20} />}
             {activeTask.type === 'process' && <ClipboardCheck size={20} />}
             {activeTask.type === 'location' && <MapPin size={20} />}
             {activeTask.type === 'tip' && <AlertCircle size={20} />}
-            {activeTask.type === 'examination' && <Search size={20} />}
+            {activeTask.type === 'payment' && <CreditCard size={20} />}
+            {activeTask.type === 'examination' && <ClipboardList size={20} />}
             {activeTask.type === 'checkin' && <ClipboardCheck size={20} />}
           </div>
           <h2 className="text-lg font-bold sm:text-xl">{activeTask.title}</h2>
@@ -140,7 +148,7 @@ export default function AITaskRenderer({
           const waitMinutes = typeof d.waitMinutes === 'number' ? d.waitMinutes : 15;
           return (
             <div className="w-full">
-              <div className="overflow-hidden rounded-[1.25rem] bg-[#6338f1] p-5 text-white shadow-lg sm:rounded-3xl sm:p-6">
+              <div className="overflow-hidden rounded-[1.25rem] bg-hospital-blue p-5 text-white shadow-lg sm:rounded-3xl sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-white/90">当前叫号</div>
@@ -171,55 +179,106 @@ export default function AITaskRenderer({
           );
         })()}
 
-        {activeTask.type === 'payment' && (
-          <div className="w-full space-y-6 sm:space-y-8">
-            <div className="text-center">
-              <h3 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">费用结算</h3>
-              <p className="text-sm text-gray-500 sm:text-base">您有 1 笔待缴费用</p>
-            </div>
-            <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:space-y-6 sm:p-8">
-              <div className="flex items-center justify-between gap-3 border-b pb-4 text-sm sm:text-base">
-                <span className="text-gray-500">项目：血常规检查</span>
-                <span className="font-bold">¥ 152.00</span>
-              </div>
-              <div className="flex items-center justify-between text-xl font-bold sm:text-2xl">
-                <span>总计</span>
-                <span className="text-orange-500">¥ 152.00</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTask.type === 'examination' && (
-          <div className="w-full space-y-6 text-center sm:space-y-8">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-purple-100 text-purple-600 sm:mb-6 sm:h-24 sm:w-24">
-              <Search size={40} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 sm:text-3xl">完成检查</h3>
-            <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-6 text-left shadow-sm sm:space-y-6 sm:p-8">
-              {(((activeTask.data as ExaminationData).items) || [
-                { name: '血常规检查', location: '门诊楼 2 层检验科' },
-                { name: '胸部 X 光', location: '放射科 1 层' },
-              ]).map((item, i) => (
-                <div key={i} className="flex flex-col gap-3 rounded-xl bg-gray-50 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <div className="text-base font-bold sm:text-lg">{item.name}</div>
-                    <div className="flex items-center gap-1 text-sm text-gray-500">
-                      <MapPin size={14} /> {item.location}
-                    </div>
-                  </div>
-                  <div className="self-start rounded-lg bg-purple-50 px-3 py-1 text-sm font-bold text-purple-600 sm:self-auto">待检查</div>
+        {activeTask.type === 'payment' && (() => {
+          const d = activeTask.data as PaymentData;
+          const lineItems =
+            d.lineItems && d.lineItems.length > 0
+              ? d.lineItems
+              : [
+                  { name: '血常规(五分类)', price: 45 },
+                  { name: '胸部正侧位 X线', price: 120 },
+                  { name: '阿莫西林胶囊', price: 32.5 },
+                ];
+          const total =
+            typeof d.total === 'number'
+              ? d.total
+              : lineItems.reduce((sum, row) => sum + row.price, 0);
+          const statusLabel = d.statusLabel ?? '待支付';
+          return (
+            <div className="w-full space-y-0">
+              <div
+                className={`flex items-center justify-between gap-3 rounded-xl px-3 py-3.5 sm:px-4 sm:py-4 ${MED_CARD_HEADER}`}
+              >
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <CreditCard className="h-5 w-5 shrink-0 text-gray-600" strokeWidth={1.75} />
+                  <span className="truncate text-base font-bold text-gray-900 sm:text-lg">费用明细</span>
                 </div>
-              ))}
-            </div>
-            <div className="rounded-2xl border border-purple-100 bg-purple-50 p-4 text-left sm:p-5">
-              <div className="mb-2 flex items-center gap-2 font-bold text-purple-600">
-                <Info size={18} /> 检查须知
+                <span className="shrink-0 rounded-full bg-hospital-blue/12 px-3 py-1 text-xs font-semibold text-hospital-blue sm:text-sm">
+                  {statusLabel}
+                </span>
               </div>
-              <p className="text-sm text-purple-700 sm:text-base">请携带就诊卡前往指定地点。部分检查可能需要排队，请耐心等候。</p>
+              <div className="divide-y divide-gray-100">
+                {lineItems.map((row, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between gap-3 py-3.5 text-sm sm:py-4 sm:text-base"
+                  >
+                    <span className="text-gray-500">{row.name}</span>
+                    <span className="shrink-0 font-semibold text-gray-900">{formatYuan(row.price)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-gray-100 pt-4">
+                <span className="text-base font-bold text-gray-900 sm:text-lg">合计</span>
+                <span className="text-xl font-bold text-hospital-blue sm:text-2xl">{formatYuan(total)}</span>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
+
+        {activeTask.type === 'examination' && (() => {
+          const d = activeTask.data as ExaminationData;
+          const rawItems =
+            d.items && d.items.length > 0
+              ? d.items
+              : [
+                  { name: '血常规(五分类)', status: 'completed' as const },
+                  { name: '阿莫西林胶囊', status: 'pending' as const },
+                ];
+          const items: ExaminationItem[] = rawItems.map((item) => ({
+            ...item,
+            status: item.status ?? 'pending',
+          }));
+          const departmentLabel = d.departmentLabel ?? '检验科（2楼）';
+          return (
+            <div className="w-full space-y-0">
+              <div
+                className={`flex items-center gap-2.5 rounded-xl px-3 py-3.5 sm:px-4 sm:py-4 ${MED_CARD_HEADER}`}
+              >
+                <ClipboardList className="h-5 w-5 shrink-0 text-gray-600" strokeWidth={1.75} />
+                <span className="text-base font-bold text-gray-900 sm:text-lg">{departmentLabel}</span>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {items.map((item, i) => {
+                  const done = item.status === 'completed';
+                  const label = done ? '已完成' : '待检查';
+                  const statusClass = done ? 'text-gray-500' : 'font-medium text-hospital-blue';
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      className="flex w-full items-start justify-between gap-3 py-4 text-left transition hover:bg-gray-50/80 sm:py-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm text-gray-500 sm:text-base">{item.name}</div>
+                        {item.location ? (
+                          <div className="mt-1 flex items-center gap-1 text-xs text-gray-400">
+                            <MapPin size={12} className="shrink-0" />
+                            {item.location}
+                          </div>
+                        ) : null}
+                      </div>
+                      <span className={`flex shrink-0 items-center gap-0.5 text-sm sm:text-base ${statusClass}`}>
+                        {label}
+                        <ChevronRight className="h-4 w-4 opacity-70" strokeWidth={2} />
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })()}
 
         {activeTask.type === 'report' && (
           <div className="w-full space-y-6 text-center sm:space-y-8">
@@ -421,9 +480,7 @@ export default function AITaskRenderer({
         <div className="px-4 pb-4 sm:px-6 sm:pb-6">
           <button
             onClick={safeComplete}
-            className={`w-full rounded-2xl py-4 text-base font-bold text-white shadow-lg sm:text-lg ${
-              activeTask.type === 'checkin' ? 'bg-[#6338f1] hover:bg-[#5630d4]' : 'bg-hospital-blue'
-            }`}
+            className="w-full rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition hover:brightness-95 sm:text-lg"
           >
             完成当前任务
           </button>

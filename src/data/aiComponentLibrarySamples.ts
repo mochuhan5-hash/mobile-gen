@@ -106,7 +106,15 @@ export const taskPanelSamples: Array<{ title: string; task: AITask; taskStep?: n
     task: {
       type: 'payment',
       title: '费用结算',
-      data: {},
+      data: {
+        lineItems: [
+          { name: '血常规(五分类)', price: 45 },
+          { name: '胸部正侧位 X线', price: 120 },
+          { name: '阿莫西林胶囊', price: 32.5 },
+        ],
+        total: 197.5,
+        statusLabel: '待支付',
+      },
     },
   },
   {
@@ -115,9 +123,10 @@ export const taskPanelSamples: Array<{ title: string; task: AITask; taskStep?: n
       type: 'examination',
       title: '完成检查',
       data: {
+        departmentLabel: '检验科（2楼）',
         items: [
-          { name: '血常规检查', location: '门诊楼 2 层检验科' },
-          { name: '胸部 X 光', location: '放射科 1 层' },
+          { name: '血常规(五分类)', status: 'completed' },
+          { name: '阿莫西林胶囊', status: 'pending' },
         ],
       },
     },

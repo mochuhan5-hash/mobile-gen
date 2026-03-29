@@ -209,7 +209,8 @@ export default function App() {
           - medical: { "symptoms": ["症状1"], "recommendation": "科室名", "confidence": 0.9 }
           - appointment: { "department": "科室名", "doctors": [{"name": "医生名", "time": "时间", "fee": "金额"}] }
           - checkin: { "callingNumber": "A042", "aheadCount": 5, "waitMinutes": 15, "department": "呼吸内科门诊" }（均为可选，缺省用占位）
-          - examination: { "items": [{"name": "检查项1", "location": "地点"}] }
+          - payment: { "lineItems": [{"name": "项目名称", "price": 45.0}], "total": 197.5, "statusLabel": "待支付" }（lineItems/total/statusLabel 可选）
+          - examination: { "departmentLabel": "检验科（2楼）", "items": [{"name": "血常规(五分类)", "status": "completed"}, {"name": "项目2", "status": "pending", "location": "可选地点"}] }
           - recommendation: { "type": "checkin", "title": "前往签到", "target": "呼吸内科" }
 
           规则示例：
