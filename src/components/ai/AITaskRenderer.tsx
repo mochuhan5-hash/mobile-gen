@@ -587,16 +587,18 @@ export default function AITaskRenderer({
         )}
       </div>
 
-      {!preview && ['checkin', 'payment', 'report', 'meds', 'examination'].includes(activeTask.type) && (
-        <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-          <button
-            onClick={safeComplete}
-            className="w-full rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition hover:brightness-95 sm:text-lg"
-          >
-            完成当前任务
-          </button>
-        </div>
-      )}
+      {!preview &&
+        ['checkin', 'payment', 'report', 'meds', 'examination', 'tip'].includes(activeTask.type) && (
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <button
+              type="button"
+              onClick={safeComplete}
+              className="w-full rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition hover:brightness-95 sm:text-lg"
+            >
+              {activeTask.type === 'tip' ? '知道了' : '完成当前任务'}
+            </button>
+          </div>
+        )}
     </motion.div>
   );
 }
