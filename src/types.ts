@@ -87,17 +87,78 @@ export interface AppointmentData {
   title?: string;
 }
 
+export interface PaymentLineItem {
+  name: string;
+  /** 金额数值（元），用于展示 ¥ xx.xx */
+  price: number;
+}
+
+export interface PaymentData {
+  lineItems?: PaymentLineItem[];
+  /** 未传时按 lineItems 合计 */
+  total?: number;
+  /** 右上角状态文案，默认「待支付」 */
+  statusLabel?: string;
+}
+
 export interface ExaminationItem {
   name: string;
-  location: string;
+  location?: string;
+  /** 已完成 / 待检查 展示样式 */
+  status?: 'completed' | 'pending';
 }
 
 export interface ExaminationData {
   items?: ExaminationItem[];
   title?: string;
+  /** 卡片抬头，如「检验科（2楼）」 */
+  departmentLabel?: string;
 }
 
-export type AIComponentData = MedicalData | ProcessData | LocationData | TipData | RecommendationData | ResumeTaskData | AppointmentData | ExaminationData | Record<string, unknown>;
+/** 签到候诊 / 叫号展示（可选，缺省使用占位数据） */
+export interface CheckinData {
+  /** 当前叫号，如 A042 */
+  callingNumber?: string;
+  /** 前面排队人数 */
+  aheadCount?: number;
+  /** 预计等待分钟数 */
+  waitMinutes?: number;
+  /** 科室名称（展示用） */
+  department?: string;
+}
+
+/** 支付取药 — 药品清单行（名称 + 单价） */
+export interface MedsMedicineRow {
+  name: string;
+  price: number;
+}
+
+/** 支付取药 / 取药指引 */
+export interface MedsData {
+  /** 取药窗口，如「3号 门诊药房」 */
+  pickupWindow?: string;
+  pickupCode?: string | number;
+  /** 药品清单（含单价）；优先于 medicineList */
+  medicineItems?: MedsMedicineRow[];
+  /** 仅名称、无单价（兼容旧数据） */
+  medicineList?: string[];
+  /** 应付合计；未传时按 medicineItems 单价求和 */
+  total?: number;
+}
+
+export type AIComponentData =
+  | MedicalData
+  | ProcessData
+  | LocationData
+  | TipData
+  | RecommendationData
+  | ResumeTaskData
+  | AppointmentData
+  | PaymentData
+  | ExaminationData
+  | CheckinData
+  | MedsData
+  | Record<string, unknown>;
 
 export interface AIComponentPayload<TType extends AIMessageComponentType | AITaskType = AIMessageComponentType | AITaskType, TData = AIComponentData> {
   type: TType;
