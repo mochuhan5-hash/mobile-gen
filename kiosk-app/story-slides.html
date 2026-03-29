@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>故事幻灯片</title>
+    <style>
+      :root {
+        --slide-bg: #0d1117;
+        --text: #e6edf3;
+        --muted: #8b949e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+        background: #000;
+        color: var(--text);
+      }
+
+      .deck {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      .slide {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: clamp(1.5rem, 5vw, 3rem);
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.55s ease, visibility 0.55s ease;
+        text-align: center;
+      }
+
+      .slide.is-active {
+        opacity: 1;
+        visibility: visible;
+        z-index: 1;
+      }
+
+      /* —— 第 1 页：暗沉雨天 —— */
+      .slide--rain {
+        background: radial-gradient(120% 80% at 50% 100%, #1a2332 0%, #0a0e14 45%, #050608 100%);
+        overflow: hidden;
+      }
+
+      .slide--rain::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          180deg,
+          rgba(15, 20, 28, 0.2) 0%,
+          rgba(8, 10, 14, 0.85) 100%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .clouds {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 42%;
+        background:
+          radial-gradient(ellipse 120% 80% at 20% 60%, rgba(30, 38, 50, 0.95) 0%, transparent 55%),
+          radial-gradient(ellipse 100% 70% at 55% 40%, rgba(22, 28, 38, 0.9) 0%, transparent 50%),
+          radial-gradient(ellipse 90% 60% at 85% 70%, rgba(26, 32, 44, 0.88) 0%, transparent 48%);
+        filter: blur(2px);
+        z-index: 0;
+      }
+
+      .rain {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .rain__layer {
+        position: absolute;
+        inset: -20% 0 0 0;
+        background-image: repeating-linear-gradient(
+          105deg,
+          transparent,
+          transparent 2px,
+          rgba(180, 200, 220, 0.04) 2px,
+          rgba(180, 200, 220, 0.04) 3px
+        );
+        animation: rain-fall 0.55s linear infinite;
+        opacity: 0.65;
+      }
+
+      .rain__layer--2 {
+        animation-duration: 0.75s;
+        opacity: 0.35;
+        margin-left: 8%;
+        background-image: repeating-linear-gradient(
+          98deg,
+          transparent,
+          transparent 3px,
+          rgba(200, 215, 235, 0.06) 3px,
+          rgba(200, 215, 235, 0.06) 4px
+        );
+      }
+
+      .rain__layer--3 {
+        animation-duration: 0.95s;
+        opacity: 0.22;
+        margin-left: -5%;
+      }
+
+      @keyframes rain-fall {
+        from {
+          transform: translateY(-12%);
+        }
+        to {
+          transform: translateY(12%);
+        }
+      }
+
+      .distant-light {
+        position: absolute;
+        bottom: 18%;
+        left: 50%;
+        transform: translateX(-50%);
+        width: min(90vw, 520px);
+        height: 8px;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(80, 100, 130, 0.15) 20%,
+          rgba(120, 140, 170, 0.12) 50%,
+          rgba(80, 100, 130, 0.15) 80%,
+          transparent
+        );
+        border-radius: 50%;
+        filter: blur(6px);
+        z-index: 1;
+      }
+
+      /* 玻璃层：轻微折射与雾气，雨滴附着其表面 */
+      .glass-surface {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        pointer-events: none;
+        overflow: hidden;
+        background: linear-gradient(
+          125deg,
+          rgba(255, 255, 255, 0.04) 0%,
+          rgba(120, 160, 200, 0.03) 35%,
+          rgba(0, 15, 30, 0.12) 100%
+        );
+        backdrop-filter: blur(1.2px) saturate(0.92);
+        -webkit-backdrop-filter: blur(1.2px) saturate(0.92);
+      }
+
+      .glass-surface::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 80% 50% at 15% 20%, rgba(255, 255, 255, 0.06) 0%, transparent 50%),
+          radial-gradient(ellipse 60% 40% at 88% 30%, rgba(200, 220, 255, 0.04) 0%, transparent 45%);
+        opacity: 0.7;
+      }
+
+      /** 玻璃上的水珠（由脚本生成尺寸与轨迹） */
+      .glass-drop {
+        position: absolute;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background: radial-gradient(
+          140% 140% at 30% 28%,
+          rgba(255, 255, 255, 0.55) 0%,
+          rgba(255, 255, 255, 0.12) 18%,
+          rgba(30, 40, 55, 0.25) 45%,
+          rgba(255, 255, 255, 0.08) 72%,
+          rgba(0, 0, 0, 0.2) 100%
+        );
+        box-shadow:
+          inset -2px -3px 5px rgba(0, 0, 0, 0.45),
+          inset 2px 2px 4px rgba(255, 255, 255, 0.22),
+          0 2px 8px rgba(0, 0, 0, 0.25);
+        opacity: 0.82;
+        animation-name: droplet-slide;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+      }
+
+      .glass-drop--smear {
+        border-radius: 46% 46% 48% 48% / 58% 58% 42% 42%;
+        filter: blur(0.25px);
+        opacity: 0.55;
+      }
+
+      .glass-drop--tiny {
+        box-shadow:
+          inset -1px -1px 2px rgba(0, 0, 0, 0.4),
+          inset 1px 1px 1px rgba(255, 255, 255, 0.35);
+        opacity: 0.65;
+      }
+
+      @keyframes droplet-slide {
+        0% {
+          transform: translate(-50%, -50%) translateY(-8vh);
+        }
+        100% {
+          transform: translate(-50%, -50%) translateY(108vh);
+        }
+      }
+
+      /** 沿玻璃下滑的细水痕 */
+      .glass-streak {
+        position: absolute;
+        top: -15%;
+        width: 2px;
+        border-radius: 2px;
+        background: linear-gradient(
+          180deg,
+          transparent 0%,
+          rgba(255, 255, 255, 0.12) 20%,
+          rgba(200, 220, 240, 0.18) 50%,
+          rgba(255, 255, 255, 0.08) 80%,
+          transparent 100%
+        );
+        opacity: 0.35;
+        filter: blur(0.5px);
+        animation-name: streak-slide;
+        animation-timing-function: linear;
+        animation-iteration-count: infinite;
+      }
+
+      @keyframes streak-slide {
+        0% {
+          transform: translateY(0);
+        }
+        100% {
+          transform: translateY(120vh);
+        }
+      }
+
+      .slide--rain .slide__inner {
+        position: relative;
+        z-index: 3;
+        max-width: 40rem;
+        padding: clamp(1rem, 3vw, 1.75rem);
+      }
+
+      .slide--rain h1 {
+        margin: 0 0 1rem;
+        font-size: clamp(1.65rem, 4.6vw, 2.5rem);
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        color: #dce2ea;
+        text-shadow:
+          0 2px 20px rgba(0, 0, 0, 0.75),
+          0 0 40px rgba(0, 0, 0, 0.35);
+      }
+
+      .slide--rain h1 .title-en {
+        display: block;
+        margin-top: 0.4rem;
+        font-size: 0.42em;
+        font-weight: 400;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(180, 195, 210, 0.88);
+      }
+
+      /* —— 通用内页 —— */
+      .slide--plain {
+        background: linear-gradient(160deg, #161b22 0%, #0d1117 100%);
+      }
+
+      .slide--plain h2 {
+        margin: 0 0 1rem;
+        font-size: clamp(1.5rem, 4vw, 2.25rem);
+        font-weight: 600;
+      }
+
+      .slide--plain p,
+      .slide--plain li {
+        color: var(--muted);
+        font-size: clamp(1rem, 2vw, 1.15rem);
+        line-height: 1.7;
+        max-width: 32rem;
+      }
+
+      .slide--plain ul {
+        text-align: left;
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+
+      /* —— 导航与指示 —— */
+      .nav-hit {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 22%;
+        max-width: 160px;
+        z-index: 10;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+
+      .nav-hit--prev {
+        left: 0;
+      }
+
+      .nav-hit--next {
+        right: 0;
+      }
+
+      .nav-hit:focus-visible {
+        outline: 2px solid rgba(88, 166, 255, 0.6);
+        outline-offset: -2px;
+      }
+
+      .dots {
+        position: absolute;
+        bottom: clamp(1rem, 3vh, 1.75rem);
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 0.5rem;
+        z-index: 10;
+      }
+
+      .dots button {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        border: none;
+        padding: 0;
+        background: rgba(255, 255, 255, 0.2);
+        cursor: pointer;
+        transition: background 0.2s, transform 0.2s;
+      }
+
+      .dots button[aria-current="true"] {
+        background: rgba(88, 166, 255, 0.9);
+        transform: scale(1.15);
+      }
+
+      .hint {
+        position: absolute;
+        bottom: clamp(3rem, 8vh, 4.5rem);
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 0.75rem;
+        color: rgba(255, 255, 255, 0.28);
+        z-index: 10;
+        pointer-events: none;
+        max-width: 90vw;
+        text-align: center;
+        line-height: 1.45;
+      }
+
+      .sound-btn {
+        position: absolute;
+        top: clamp(0.75rem, 2vh, 1.25rem);
+        right: clamp(0.75rem, 2vw, 1.25rem);
+        z-index: 12;
+        padding: 0.4rem 0.75rem;
+        font-size: 0.75rem;
+        letter-spacing: 0.06em;
+        color: rgba(220, 230, 240, 0.9);
+        background: rgba(20, 28, 40, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 999px;
+        cursor: pointer;
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        transition: background 0.2s, color 0.2s;
+      }
+
+      .sound-btn:hover {
+        background: rgba(35, 48, 68, 0.65);
+      }
+
+      .sound-btn[aria-pressed="false"] {
+        color: rgba(140, 155, 170, 0.85);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="deck" id="deck" role="application" aria-label="故事幻灯片">
+      <!-- 第 1 页：暗沉下雨天 -->
+      <section class="slide slide--rain is-active" data-slide="0" aria-label="第一幕 雨天">
+        <div class="clouds" aria-hidden="true"></div>
+        <div class="rain" aria-hidden="true">
+          <div class="rain__layer rain__layer--1"></div>
+          <div class="rain__layer rain__layer--2"></div>
+          <div class="rain__layer rain__layer--3"></div>
+        </div>
+        <div class="distant-light" aria-hidden="true"></div>
+        <div class="glass-surface" id="glassSurface" aria-hidden="true"></div>
+        <div class="slide__inner">
+          <h1>
+            第一幕 · 雨夜
+            <span class="title-en">Act I · Rain at Night</span>
+          </h1>
+        </div>
+      </section>
+
+      <section class="slide slide--plain" data-slide="1" aria-hidden="true">
+        <h2>第二页 · 待写</h2>
+        <p>在这里接续你的情节：人物出场、冲突或转折。可按需修改标题与正文。</p>
+      </section>
+
+      <section class="slide slide--plain" data-slide="2" aria-hidden="true">
+        <h2>第三页 · 待写</h2>
+        <ul>
+          <li>可改为时间线、地点切换或对话要点</li>
+          <li>复制 <code style="color: #58a6ff">&lt;section class="slide"&gt;</code> 增加更多页</li>
+        </ul>
+      </section>
+
+      <section class="slide slide--plain" data-slide="3" aria-hidden="true">
+        <h2>终章 · 待写</h2>
+        <p>收束情绪、留白或一句点题。祝讲述顺利。</p>
+      </section>
+
+      <button type="button" class="nav-hit nav-hit--prev" id="prevBtn" aria-label="上一页"></button>
+      <button type="button" class="nav-hit nav-hit--next" id="nextBtn" aria-label="下一页"></button>
+
+      <div class="dots" id="dots" role="tablist" aria-label="幻灯片页码"></div>
+      <button type="button" id="rainSoundBtn" class="sound-btn" aria-pressed="true" aria-label="雨声音效开关">
+        雨声 · ON
+      </button>
+      <p class="hint">
+        ← → 或点击左右边缘切换<br />
+        首次点击画面或按键后播放雨声；右上角可关闭
+      </p>
+    </div>
+
+    <script>
+      (function () {
+        "use strict";
+
+        /** @type {HTMLElement | null} */
+        const deck = document.getElementById("deck");
+        /** @type {NodeListOf<HTMLElement>} */
+        const slides = document.querySelectorAll(".slide[data-slide]");
+        /** @type {HTMLButtonElement | null} */
+        const prevBtn = document.getElementById("prevBtn");
+        /** @type {HTMLButtonElement | null} */
+        const nextBtn = document.getElementById("nextBtn");
+        /** @type {HTMLElement | null} */
+        const dotsRoot = document.getElementById("dots");
+        /** @type {HTMLButtonElement | null} */
+        const rainSoundBtn = document.getElementById("rainSoundBtn");
+
+        /** @type {number} */
+        let index = 0;
+        const total = slides.length;
+
+        /** @type {boolean} 用户是否希望开启雨声（可由按钮切换） */
+        let rainSoundEnabled = true;
+        /** @type {boolean} 是否已通过手势解锁 Web Audio（浏览器策略） */
+        let audioUnlocked = false;
+        /** @type {AudioContext | null} */
+        let audioCtx = null;
+        /** @type {GainNode | null} */
+        let rainMasterGain = null;
+        /** @type {AudioBufferSourceNode | null} */
+        let rainNoiseSource = null;
+        /** @type {ReturnType<typeof setTimeout> | null} */
+        let dripTimerId = null;
+
+        /**
+         * 创建 AudioContext（含降级）。
+         * @returns {AudioContext | null}
+         */
+        function createAudioContext() {
+          const AC = window.AudioContext || window.webkitAudioContext;
+          if (!AC) return null;
+          return new AC();
+        }
+
+        /**
+         * 生成循环用的棕噪声缓冲，听起来接近雨幕沙沙声。
+         * @param {AudioContext} ctx
+         * @param {number} seconds
+         * @returns {AudioBuffer}
+         */
+        function buildBrownNoiseBuffer(ctx, seconds) {
+          const len = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+          const buffer = ctx.createBuffer(1, len, ctx.sampleRate);
+          const data = buffer.getChannelData(0);
+          let last = 0;
+          for (let i = 0; i < len; i++) {
+            const white = Math.random() * 2 - 1;
+            last = (last + 0.02 * white) * 0.983;
+            data[i] = last * 0.42;
+          }
+          return buffer;
+        }
+
+        /**
+         * 搭建雨声主声部（循环噪声 + 低通），只创建一次。
+         * @returns {void}
+         */
+        function ensureRainNoiseGraph() {
+          if (!audioCtx || rainNoiseSource) return;
+          const buf = buildBrownNoiseBuffer(audioCtx, 2.8);
+          const src = audioCtx.createBufferSource();
+          src.buffer = buf;
+          src.loop = true;
+          const low = audioCtx.createBiquadFilter();
+          low.type = "lowpass";
+          low.frequency.value = 880;
+          low.Q.value = 0.4;
+          const high = audioCtx.createBiquadFilter();
+          high.type = "highpass";
+          high.frequency.value = 380;
+          rainMasterGain = audioCtx.createGain();
+          rainMasterGain.gain.value = 0;
+          src.connect(low);
+          low.connect(high);
+          high.connect(rainMasterGain);
+          rainMasterGain.connect(audioCtx.destination);
+          src.start();
+          rainNoiseSource = src;
+        }
+
+        /**
+         * 播放一次极短的雨滴落「嗒」声，经主增益以随雨声开关静音。
+         * @returns {void}
+         */
+        function playDripHit() {
+          if (!audioCtx || !rainMasterGain || index !== 0 || !rainSoundEnabled) return;
+          const t = audioCtx.currentTime;
+          const dur = 0.035 + Math.random() * 0.055;
+          const n = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+          const buffer = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
+          const ch = buffer.getChannelData(0);
+          for (let i = 0; i < n; i++) {
+            ch[i] = (Math.random() * 2 - 1) * (1 - i / n) * 0.85;
+          }
+          const src = audioCtx.createBufferSource();
+          src.buffer = buffer;
+          const band = audioCtx.createBiquadFilter();
+          band.type = "bandpass";
+          band.frequency.value = 1800 + Math.random() * 3200;
+          band.Q.value = 1.1;
+          const g = audioCtx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(0.07 + Math.random() * 0.06, t + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          src.connect(band);
+          band.connect(g);
+          g.connect(rainMasterGain);
+          src.start(t);
+          src.stop(t + dur + 0.03);
+        }
+
+        /**
+         * 调度随机水滴声；离开雨夜页或关闭雨声时由外部清理定时器。
+         * @returns {void}
+         */
+        function scheduleNextDrip() {
+          if (dripTimerId !== null) {
+            clearTimeout(dripTimerId);
+            dripTimerId = null;
+          }
+          if (!audioCtx || index !== 0 || !rainSoundEnabled) return;
+          const delay = 120 + Math.random() * 650;
+          dripTimerId = setTimeout(function dripTick() {
+            playDripHit();
+            scheduleNextDrip();
+          }, delay);
+        }
+
+        /**
+         * 根据当前页与开关淡入淡出雨声。
+         * @returns {void}
+         */
+        function updateRainAudio() {
+          if (!audioUnlocked || !audioCtx || !rainMasterGain) return;
+          const t = audioCtx.currentTime;
+          const target = index === 0 && rainSoundEnabled ? 0.2 : 0;
+          rainMasterGain.gain.cancelScheduledValues(t);
+          rainMasterGain.gain.setValueAtTime(rainMasterGain.gain.value, t);
+          rainMasterGain.gain.linearRampToValueAtTime(target, t + (target > 0 ? 1.1 : 0.55));
+          if (index === 0 && rainSoundEnabled) {
+            scheduleNextDrip();
+          } else if (dripTimerId !== null) {
+            clearTimeout(dripTimerId);
+            dripTimerId = null;
+          }
+        }
+
+        /**
+         * 用户手势后解锁音频上下文（满足自动播放策略）。
+         * @returns {void}
+         */
+        function unlockAudio() {
+          if (audioUnlocked) {
+            void audioCtx?.resume().then(updateRainAudio);
+            return;
+          }
+          audioCtx = createAudioContext();
+          if (!audioCtx) return;
+          audioUnlocked = true;
+          ensureRainNoiseGraph();
+          void audioCtx.resume().then(updateRainAudio);
+        }
+
+        /**
+         * 同步雨声按钮文案与 aria 状态。
+         * @returns {void}
+         */
+        function syncSoundButton() {
+          if (!rainSoundBtn) return;
+          rainSoundBtn.setAttribute("aria-pressed", rainSoundEnabled ? "true" : "false");
+          rainSoundBtn.textContent = rainSoundEnabled ? "雨声 · ON" : "雨声 · OFF";
+        }
+
+        /**
+         * 将索引限制在有效范围内。
+         * @param {number} i
+         * @returns {number}
+         */
+        function clamp(i) {
+          return Math.max(0, Math.min(total - 1, i));
+        }
+
+        /**
+         * 切换到指定幻灯片并同步无障碍属性与圆点状态。
+         * @param {number} nextIndex
+         * @returns {void}
+         */
+        function goTo(nextIndex) {
+          index = clamp(nextIndex);
+          slides.forEach((el, i) => {
+            const active = i === index;
+            el.classList.toggle("is-active", active);
+            el.setAttribute("aria-hidden", active ? "false" : "true");
+          });
+          if (dotsRoot) {
+            dotsRoot.querySelectorAll("button").forEach((btn, i) => {
+              btn.setAttribute("aria-current", i === index ? "true" : "false");
+            });
+          }
+          updateRainAudio();
+        }
+
+        /**
+         * 构建底部分页圆点。
+         * @returns {void}
+         */
+        function buildDots() {
+          if (!dotsRoot) return;
+          dotsRoot.innerHTML = "";
+          for (let i = 0; i < total; i++) {
+            const b = document.createElement("button");
+            b.type = "button";
+            b.setAttribute("role", "tab");
+            b.setAttribute("aria-label", "第 " + (i + 1) + " 页");
+            b.addEventListener("click", () => goTo(i));
+            dotsRoot.appendChild(b);
+          }
+          goTo(0);
+        }
+
+        prevBtn?.addEventListener("click", () => goTo(index - 1));
+        nextBtn?.addEventListener("click", () => goTo(index + 1));
+
+        deck?.addEventListener(
+          "pointerdown",
+          function () {
+            unlockAudio();
+          },
+          { passive: true }
+        );
+
+        rainSoundBtn?.addEventListener("click", function (e) {
+          e.stopPropagation();
+          rainSoundEnabled = !rainSoundEnabled;
+          syncSoundButton();
+          unlockAudio();
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "ArrowRight" || e.key === " " || e.key === "PageDown") {
+            e.preventDefault();
+            goTo(index + 1);
+          } else if (e.key === "ArrowLeft" || e.key === "PageUp") {
+            e.preventDefault();
+            goTo(index - 1);
+          } else if (e.key === "Home") {
+            e.preventDefault();
+            goTo(0);
+          } else if (e.key === "End") {
+            e.preventDefault();
+            goTo(total - 1);
+          }
+          unlockAudio();
+        });
+
+        buildDots();
+        syncSoundButton();
+
+        /**
+         * 在首屏玻璃层上生成随机水珠与水痕，并尽量避开中央正文区域。
+         * @returns {void}
+         */
+        function initGlassRain() {
+          /** @type {HTMLElement | null} */
+          const host = document.getElementById("glassSurface");
+          if (!host) return;
+
+          /**
+           * @param {number} min
+           * @param {number} max
+           * @returns {number}
+           */
+          const rand = (min, max) => min + Math.random() * (max - min);
+
+          /**
+           * @returns {{ x: number; y: number }}
+           */
+          function samplePosition() {
+            let x = 0;
+            let y = 0;
+            for (let k = 0; k < 24; k++) {
+              x = rand(1, 99);
+              y = rand(1, 99);
+              const dx = Math.abs(x - 50);
+              const dy = Math.abs(y - 48);
+              if (dx > 20 || dy > 24) return { x, y };
+            }
+            return { x, y };
+          }
+
+          const dropCount = 86;
+          for (let i = 0; i < dropCount; i++) {
+            const { x, y } = samplePosition();
+            const el = document.createElement("span");
+            el.className = "glass-drop";
+            if (Math.random() < 0.22) el.classList.add("glass-drop--smear");
+            if (Math.random() < 0.35) el.classList.add("glass-drop--tiny");
+
+            const w = rand(3, 13);
+            const h = w * (0.85 + Math.random() * 0.45);
+            el.style.left = x + "%";
+            el.style.top = y + "%";
+            el.style.width = w + "px";
+            el.style.height = h + "px";
+            el.style.animationDuration = rand(14, 32) + "s";
+            el.style.animationDelay = rand(-28, 0) + "s";
+            host.appendChild(el);
+          }
+
+          const streakCount = 22;
+          for (let j = 0; j < streakCount; j++) {
+            const st = document.createElement("span");
+            st.className = "glass-streak";
+            st.style.left = rand(0, 100) + "%";
+            st.style.height = rand(12, 38) + "%";
+            st.style.animationDuration = rand(6, 14) + "s";
+            st.style.animationDelay = rand(-12, 0) + "s";
+            st.style.opacity = String(rand(0.22, 0.42));
+            host.appendChild(st);
+          }
+        }
+
+        initGlassRain();
+      })();
+    </script>
+  </body>
+</html>
