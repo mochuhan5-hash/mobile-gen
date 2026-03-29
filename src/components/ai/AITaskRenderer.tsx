@@ -1,6 +1,8 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
   AlertCircle,
+  Calendar,
   CheckCircle2,
   ChevronRight,
   ClipboardCheck,
@@ -8,19 +10,21 @@ import {
   CreditCard,
   FileText,
   Headset,
-  Info,
   MapPin,
   Navigation,
+  Pill,
   RotateCcw,
   Stethoscope,
 } from 'lucide-react';
 import type {
   AITask,
   AppointmentData,
+  DoctorOption,
   CheckinData,
   ExaminationData,
   ExaminationItem,
   MedicalData,
+  MedsData,
   PaymentData,
   ProcessData,
   TipData,
@@ -56,6 +60,12 @@ export default function AITaskRenderer({
   recordSelection,
   preview = false,
 }: AITaskRendererProps) {
+  const [selectedDoctorIndex, setSelectedDoctorIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setSelectedDoctorIndex(null);
+  }, [activeTask]);
+
   if (!activeTask) return null;
 
   const safeClose = () => setActiveTask(null);
@@ -81,6 +91,9 @@ export default function AITaskRenderer({
             {activeTask.type === 'payment' && <CreditCard size={20} />}
             {activeTask.type === 'examination' && <ClipboardList size={20} />}
             {activeTask.type === 'checkin' && <ClipboardCheck size={20} />}
+            {activeTask.type === 'meds' && <Pill size={20} />}
+            {activeTask.type === 'report' && <FileText size={20} />}
+            {activeTask.type === 'appointment' && <Calendar size={20} />}
           </div>
           <h2 className="text-lg font-bold sm:text-xl">{activeTask.title}</h2>
         </div>
@@ -90,56 +103,109 @@ export default function AITaskRenderer({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {activeTask.type === 'appointment' && (
-          <div className="w-full space-y-6 sm:space-y-8">
-            <div className="space-y-4 sm:space-y-6">
-              <div className="text-center">
-                <h3 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">选择医生</h3>
-                <p className="text-sm text-gray-500 sm:text-base">科室：{(activeTask.data as AppointmentData).department}</p>
-              </div>
-              <div className="grid grid-cols-1 gap-3 sm:gap-4">
-                {(((activeTask.data as AppointmentData).doctors) || [
+        {activeTask.type === 'appointment' && (() => {
+          const doctors: DoctorOption[] =
+            (activeTask.data as AppointmentData).doctors?.length
+              ? (activeTask.data as AppointmentData).doctors!
+              : [
                   { name: '王主任', time: '14:00', fee: '¥50' },
                   { name: '李医生', time: '15:30', fee: '¥20' },
-                ]).map((doc, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => recordSelection?.({
-                      componentType: 'appointment',
-                      doctorName: doc.name,
-                      time: doc.time,
-                      fee: doc.fee,
-                    })}
-                    className="flex items-center justify-between gap-3 rounded-2xl border-2 border-gray-100 bg-white p-4 text-left sm:p-5"
-                  >
-                    <div className="flex items-center gap-3 sm:gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-lg font-bold text-hospital-blue sm:h-14 sm:w-14 sm:text-xl">
-                        {doc.name[0]}
-                      </div>
-                      <div className="text-left">
-                        <div className="text-lg font-bold text-gray-800 sm:text-xl">{doc.name}</div>
-                        <div className="text-sm text-gray-500 sm:text-base">今日 {doc.time}</div>
-                      </div>
-                    </div>
-                    <div className="text-xl font-bold text-orange-500 sm:text-2xl">{doc.fee}</div>
-                  </button>
-                ))}
+                ];
+          const confirmAppointment = () => {
+            if (selectedDoctorIndex === null) return;
+            const doc = doctors[selectedDoctorIndex];
+            recordSelection?.({
+              componentType: 'appointment',
+              doctorName: doc.name,
+              time: doc.time,
+              fee: doc.fee,
+              action: 'confirm_booking',
+            });
+            safeComplete();
+          };
+          return (
+            <div className="w-full space-y-6 sm:space-y-8">
+              <div className="space-y-4 sm:space-y-6">
+                <div className="text-center">
+                  <h3 className="mb-2 text-2xl font-bold text-gray-900 sm:text-3xl">选择医生</h3>
+                  <p className="text-sm text-gray-500 sm:text-base">
+                    科室：{(activeTask.data as AppointmentData).department}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:gap-4" role="radiogroup" aria-label="选择医生">
+                  {doctors.map((doc, i) => {
+                    const selected = selectedDoctorIndex === i;
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        role="radio"
+                        aria-checked={selected}
+                        onClick={() => setSelectedDoctorIndex(i)}
+                        className={`flex items-center justify-between gap-3 rounded-2xl border-2 p-4 text-left transition-all sm:p-5 ${
+                          selected
+                            ? 'border-hospital-blue bg-hospital-blue/[0.06] shadow-sm ring-2 ring-hospital-blue/25'
+                            : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/80'
+                        }`}
+                      >
+                        <div className="flex min-w-0 flex-1 items-center gap-3 sm:gap-4">
+                          <div
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-lg font-bold sm:h-14 sm:w-14 sm:text-xl ${
+                              selected ? 'bg-hospital-blue/15 text-hospital-blue' : 'bg-blue-100 text-hospital-blue'
+                            }`}
+                          >
+                            {doc.name[0]}
+                          </div>
+                          <div className="min-w-0 text-left">
+                            <div className="text-lg font-bold text-gray-800 sm:text-xl">{doc.name}</div>
+                            <div className="text-sm text-gray-500 sm:text-base">今日 {doc.time}</div>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+                          <div className="text-xl font-bold text-orange-500 sm:text-2xl">{doc.fee}</div>
+                          <div
+                            className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 sm:h-9 sm:w-9 ${
+                              selected
+                                ? 'border-hospital-blue bg-hospital-blue text-white'
+                                : 'border-gray-200 bg-white'
+                            }`}
+                            aria-hidden
+                          >
+                            {selected ? (
+                              <CheckCircle2 className="h-5 w-5" strokeWidth={2.5} />
+                            ) : (
+                              <span className="h-3.5 w-3.5 rounded-full border-2 border-gray-300" />
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
 
-            {!preview && (
-              <div className="flex flex-col gap-3 pt-4 sm:flex-row sm:gap-4 sm:pt-6">
-                <button onClick={safeComplete} className="flex-1 rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition-all active:scale-95 sm:text-lg">
-                  确认挂号
+              <div className="flex flex-col gap-3 border-t border-gray-100 pt-4 sm:flex-row sm:gap-4 sm:pt-6">
+                <button
+                  type="button"
+                  disabled={preview || selectedDoctorIndex === null}
+                  onClick={() => {
+                    if (!preview) confirmAppointment();
+                  }}
+                  className="flex-1 rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition-all enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 sm:text-lg"
+                >
+                  确认预约挂号
                 </button>
-                <button onClick={safeClose} className="rounded-2xl border-2 border-gray-200 px-6 py-4 text-base font-bold text-gray-600 transition-all hover:bg-gray-50 sm:text-lg">
+                <button
+                  type="button"
+                  onClick={safeClose}
+                  className="rounded-2xl border-2 border-gray-200 px-6 py-4 text-base font-bold text-gray-600 transition-all hover:bg-gray-50 sm:text-lg"
+                >
                   暂不挂号
                 </button>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {activeTask.type === 'checkin' && (() => {
           const d = activeTask.data as CheckinData;
@@ -304,30 +370,75 @@ export default function AITaskRenderer({
           </div>
         )}
 
-        {activeTask.type === 'meds' && (
-          <div className="w-full space-y-6 text-center sm:space-y-8">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-orange-100 text-orange-600 sm:mb-6 sm:h-24 sm:w-24">
-              <ClipboardCheck size={40} />
-            </div>
-            <h3 className="text-2xl font-bold text-gray-900 sm:text-3xl">支付与取药</h3>
-            <div className="space-y-4 rounded-3xl border border-gray-100 bg-white p-6 text-left shadow-sm sm:space-y-6 sm:p-8">
-              <div className="flex items-center justify-between gap-3 border-b pb-4 text-sm sm:text-base">
-                <span className="text-gray-500">药品：阿莫西林胶囊 x2</span>
-                <span className="font-bold">¥ 45.00</span>
+        {activeTask.type === 'meds' && (() => {
+          const d = activeTask.data as MedsData;
+          type MedsRow = { name: string; price?: number };
+          const defaultMedicineItems: MedsRow[] = [
+            { name: '阿莫西林胶囊（0.25g*24粒）', price: 32.5 },
+            { name: '复方甘草口服液（100ml）', price: 12.5 },
+          ];
+          const medicineRows: MedsRow[] =
+            d.medicineItems && d.medicineItems.length > 0
+              ? d.medicineItems
+              : d.medicineList && d.medicineList.length > 0
+                ? d.medicineList.map((name) => ({ name }))
+                : defaultMedicineItems;
+          const sumFromItems = medicineRows.reduce((s, r) => s + (typeof r.price === 'number' ? r.price : 0), 0);
+          const total =
+            typeof d.total === 'number'
+              ? d.total
+              : sumFromItems > 0
+                ? sumFromItems
+                : 45;
+          const pickupWindow = d.pickupWindow ?? '3号 门诊药房';
+          const pickupCode = d.pickupCode ?? '28';
+          return (
+            <div className="w-full space-y-5 sm:space-y-6">
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4 text-left">
+                <span className="text-base font-bold text-gray-900 sm:text-lg">总计</span>
+                <span className="text-xl font-bold text-hospital-blue sm:text-2xl">{formatYuan(total)}</span>
               </div>
-              <div className="flex items-center justify-between text-xl font-bold sm:text-2xl">
-                <span>总计</span>
-                <span className="text-orange-500">¥ 45.00</span>
+
+              <div className="rounded-2xl bg-[#EDEEF6] p-4 sm:rounded-3xl sm:p-5">
+                <div className="mb-4 flex items-center gap-2.5 sm:mb-5">
+                  <Pill className="h-5 w-5 shrink-0 text-gray-600" strokeWidth={2} />
+                  <span className="text-base font-bold text-gray-800 sm:text-lg">取药指引</span>
+                </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+                  <div className="rounded-xl bg-white p-4 shadow-sm sm:col-span-2 sm:p-5">
+                    <div className="text-sm text-gray-500">取药窗口</div>
+                    <div className="mt-1 text-2xl font-bold leading-tight text-hospital-blue sm:text-3xl">
+                      {pickupWindow}
+                    </div>
+                  </div>
+                  <div className="rounded-xl bg-white p-4 shadow-sm sm:col-span-1 sm:p-5">
+                    <div className="text-sm text-gray-500">取药码</div>
+                    <div className="mt-1 text-2xl font-bold tabular-nums text-hospital-blue sm:text-3xl">
+                      {pickupCode}
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-5 sm:mt-6">
+                  <div className="mb-3 text-base font-bold text-gray-800 sm:text-lg">药品清单</div>
+                  <ul className="space-y-3 text-sm text-gray-600 sm:text-base">
+                    {medicineRows.map((row, i) => (
+                      <li key={i} className="flex items-baseline justify-between gap-3 leading-relaxed">
+                        <span className="min-w-0 flex-1">
+                          {i + 1}. {row.name}
+                        </span>
+                        {typeof row.price === 'number' ? (
+                          <span className="shrink-0 font-semibold tabular-nums text-hospital-blue">
+                            {formatYuan(row.price)}
+                          </span>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
-            <div className="rounded-2xl border border-orange-100 bg-orange-50 p-4 text-left sm:p-5">
-              <div className="mb-2 flex items-center gap-2 font-bold text-orange-600">
-                <Info size={18} /> 取药指引
-              </div>
-              <p className="text-sm text-orange-700 sm:text-base">支付成功后，请前往门诊楼 1 层西药房 3 号窗口取药。</p>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeTask.type === 'medical' && (
           <div className="w-full space-y-6 sm:space-y-8">

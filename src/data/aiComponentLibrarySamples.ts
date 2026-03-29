@@ -144,7 +144,15 @@ export const taskPanelSamples: Array<{ title: string; task: AITask; taskStep?: n
     task: {
       type: 'meds',
       title: '支付与取药',
-      data: {},
+      data: {
+        total: 45,
+        pickupWindow: '3号 门诊药房',
+        pickupCode: '28',
+        medicineItems: [
+          { name: '阿莫西林胶囊（0.25g*24粒）', price: 32.5 },
+          { name: '复方甘草口服液（100ml）', price: 12.5 },
+        ],
+      },
     },
   },
   {

@@ -302,6 +302,7 @@ export default function App() {
           - checkin: { "callingNumber": "A042", "aheadCount": 5, "waitMinutes": 15, "department": "呼吸内科门诊" }（均为可选，缺省用占位）
           - payment: { "lineItems": [{"name": "项目名称", "price": 45.0}], "total": 197.5, "statusLabel": "待支付" }（lineItems/total/statusLabel 可选）
           - examination: { "departmentLabel": "检验科（2楼）", "items": [{"name": "血常规(五分类)", "status": "completed"}, {"name": "项目2", "status": "pending", "location": "可选地点"}] }
+          - meds: { "total": 45, "pickupWindow": "3号 门诊药房", "pickupCode": "28", "medicineItems": [{"name": "药品规格全名", "price": 32.5}] }（medicineItems 每项含 name+price；total 可选，默认同 medicineItems 合计）
           - recommendation: { "type": "checkin", "title": "前往签到", "target": "呼吸内科" }
 
           规则示例：

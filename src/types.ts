@@ -127,6 +127,25 @@ export interface CheckinData {
   department?: string;
 }
 
+/** 支付取药 — 药品清单行（名称 + 单价） */
+export interface MedsMedicineRow {
+  name: string;
+  price: number;
+}
+
+/** 支付取药 / 取药指引 */
+export interface MedsData {
+  /** 取药窗口，如「3号 门诊药房」 */
+  pickupWindow?: string;
+  pickupCode?: string | number;
+  /** 药品清单（含单价）；优先于 medicineList */
+  medicineItems?: MedsMedicineRow[];
+  /** 仅名称、无单价（兼容旧数据） */
+  medicineList?: string[];
+  /** 应付合计；未传时按 medicineItems 单价求和 */
+  total?: number;
+}
+
 export type AIComponentData =
   | MedicalData
   | ProcessData
@@ -138,6 +157,7 @@ export type AIComponentData =
   | PaymentData
   | ExaminationData
   | CheckinData
+  | MedsData
   | Record<string, unknown>;
 
 export interface AIComponentPayload<TType extends AIMessageComponentType | AITaskType = AIMessageComponentType | AITaskType, TData = AIComponentData> {
