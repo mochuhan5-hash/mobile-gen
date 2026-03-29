@@ -68,6 +68,9 @@ export default function AITaskRenderer({
 
   if (!activeTask) return null;
 
+  const flowActionLabel = typeof (activeTask.data as Record<string, unknown>).__standardFlowActionLabel === 'string'
+    ? (activeTask.data as Record<string, unknown>).__standardFlowActionLabel as string
+    : null;
   const safeClose = () => setActiveTask(null);
   const safeComplete = () => {
     if (!preview && completeTask) {
@@ -193,7 +196,7 @@ export default function AITaskRenderer({
                   }}
                   className="flex-1 rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition-all enabled:active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 sm:text-lg"
                 >
-                  确认预约挂号
+                  {flowActionLabel ?? '确认预约挂号'}
                 </button>
                 <button
                   type="button"
@@ -485,7 +488,7 @@ export default function AITaskRenderer({
                   }}
                   className="flex-1 rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition-all active:scale-95 sm:text-lg"
                 >
-                  立即挂号
+                  {flowActionLabel ?? '立即挂号'}
                 </button>
                 <button onClick={safeClose} className="rounded-2xl border-2 border-gray-200 px-6 py-4 text-base font-bold text-gray-600 transition-all hover:bg-gray-50 sm:text-lg">
                   返回咨询
@@ -595,7 +598,7 @@ export default function AITaskRenderer({
               onClick={safeComplete}
               className="w-full rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition hover:brightness-95 sm:text-lg"
             >
-              {activeTask.type === 'tip' ? '知道了' : '完成当前任务'}
+              {activeTask.type === 'tip' ? '知道了' : (flowActionLabel ?? '完成当前任务')}
             </button>
           </div>
         )}

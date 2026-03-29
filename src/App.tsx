@@ -44,9 +44,12 @@ import {
   buildAiContextSummary,
   buildResumeTaskComponent,
   buildTaskCompletionSummary,
+  buildTaskStepTask,
   buildUserProfileSummary,
   createJourneyContext,
   getInitialTaskStep,
+  getStandardTaskFlow,
+  normalizeTaskForFlow,
   recordRecommendation,
   recordTaskClose,
   recordTaskCompletion,
@@ -143,14 +146,16 @@ export default function App() {
   }, [messages]);
 
   const handleTaskOpen = (task: AITask, fromRecommendation = false) => {
+    const normalizedTask = normalizeTaskForFlow(task);
+
     setTaskCompletionSummary(null);
     setPendingCompletionRecommendation(null);
-    if (task.type !== 'medical') {
+    if (normalizedTask.type !== 'appointment') {
       setMedicalRequirement('');
     }
-    setActiveTask(task);
-    setTaskStep(getInitialTaskStep(task.data));
-    setJourneyContext((prev: JourneyContext) => recordTaskOpen(prev, task, fromRecommendation));
+    setActiveTask(normalizedTask);
+    setTaskStep(getInitialTaskStep(normalizedTask.data));
+    setJourneyContext((prev: JourneyContext) => recordTaskOpen(prev, normalizedTask, fromRecommendation));
   };
 
   const handleTaskClose = () => {
@@ -394,11 +399,20 @@ export default function App() {
   };
 
   const completeTask = (type: string, title: string) => {
+    const flow = activeTask ? getStandardTaskFlow(activeTask.type as 'appointment' | 'checkin' | 'examination' | 'report' | 'meds') : null;
+
+    if (activeTask && flow && taskStep < flow.steps.length - 1) {
+      handleTaskStepChange(taskStep + 1);
+      return;
+    }
+
     const completedTask = activeTask ?? { type, title, data: {} } as AITask;
+    const completedTaskType = activeTask?.type ?? type;
+    const completedTaskTitle = activeTask?.title ?? title;
     const newRecord: TaskRecord = {
       id: Math.random().toString(36).substr(2, 9),
-      type,
-      title,
+      type: completedTaskType,
+      title: completedTaskTitle,
       status: 'completed',
       timestamp: Date.now()
     };
@@ -413,15 +427,17 @@ export default function App() {
 
     setMessages((prev: Message[]) => [...prev, {
       role: 'model',
-      text: `${title}已完成。请查看下方推荐，并手动开启下一步任务。`
+      text: `${completedTaskTitle}已完成。请查看下方推荐，并手动开启下一步任务。`
     }]);
 
-    void sendMessage(`我已完成${title}，请只推荐我当前最适合开始的下一个任务，不要自动开始任务。`, {
+    void sendMessage(`我已完成${completedTaskTitle}，请只推荐我当前最适合开始的下一个任务，不要自动开始任务。`, {
       appendUserMessage: false,
       contextOverride: nextContext,
       autoOpenTask: false,
     });
   };
+
+  const currentRenderedTask = activeTask ? buildTaskStepTask(activeTask, taskStep) ?? activeTask : null;
 
   const renderContent = () => {
     switch (currentId) {
@@ -437,7 +453,7 @@ export default function App() {
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                   {activeTask ? (
                     <AITaskRenderer
-                      activeTask={activeTask}
+                      activeTask={currentRenderedTask}
                       taskStep={taskStep}
                       setTaskStep={handleTaskStepChange}
                       setActiveTask={(task) => {

@@ -225,6 +225,20 @@ export interface UserProfile {
   visitRecords: VisitRecord[];
 }
 
+export interface StandardTaskFlowStep {
+  componentType: AIInlineComponentType;
+  title: string;
+  confirmLabel?: string;
+  autoAdvance?: boolean;
+  allowAiInsertions?: boolean;
+}
+
+export interface StandardTaskFlow {
+  taskType: Extract<AITaskType, 'appointment' | 'checkin' | 'examination' | 'report' | 'meds'>;
+  title: string;
+  steps: StandardTaskFlowStep[];
+}
+
 export interface ComponentUsageRecord {
   componentType: AITaskType;
   taskType: AITaskType;
