@@ -11,7 +11,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 
 export type ScenarioId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-export type AppView = 'business' | 'library';
+export type AppView = 'business' | 'library' | 'profile';
 export type TipLevel = 'info' | 'warning' | 'emergency';
 export type RecommendationType = 'checkin' | 'payment' | 'examination' | 'report' | 'meds';
 export type AIMessageComponentType = 'medical' | 'process' | 'location' | 'tip' | 'recommendation' | 'resume_task';
@@ -175,6 +175,34 @@ export interface CompletedTaskRecord {
   title: string;
   status: 'completed';
   timestamp: number;
+}
+
+export interface VisitRecord {
+  id: string;
+  date: string;
+  department: string;
+  complaint: string;
+  diagnosis: string;
+  treatment: string;
+}
+
+export interface UserBasicInfo {
+  name: string;
+  age: number;
+  gender: string;
+  phone: string;
+}
+
+export interface UserHealthProfile {
+  allergies: string;
+  chronicConditions: string;
+  notes: string;
+}
+
+export interface UserProfile {
+  basicInfo: UserBasicInfo;
+  healthProfile: UserHealthProfile;
+  visitRecords: VisitRecord[];
 }
 
 export interface ComponentUsageRecord {
