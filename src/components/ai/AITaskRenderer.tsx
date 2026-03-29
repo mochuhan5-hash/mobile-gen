@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   CreditCard,
   FileText,
+  Headset,
   Info,
   MapPin,
   Navigation,
@@ -15,6 +16,7 @@ import {
 import type {
   AITask,
   AppointmentData,
+  CheckinData,
   ExaminationData,
   MedicalData,
   ProcessData,
@@ -59,7 +61,11 @@ export default function AITaskRenderer({
       animate={{ opacity: 1, y: 0 }}
       className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-xl"
     >
-      <div className="flex items-center justify-between border-b bg-hospital-blue p-4 text-white sm:p-5">
+      <div
+        className={`flex items-center justify-between border-b p-4 text-white sm:p-5 ${
+          activeTask.type === 'checkin' ? 'bg-[#6338f1]' : 'bg-hospital-blue'
+        }`}
+      >
         <div className="flex items-center gap-2.5 sm:gap-3">
           <div className="rounded-lg bg-white/20 p-2">
             {activeTask.type === 'medical' && <Stethoscope size={20} />}
@@ -67,6 +73,7 @@ export default function AITaskRenderer({
             {activeTask.type === 'location' && <MapPin size={20} />}
             {activeTask.type === 'tip' && <AlertCircle size={20} />}
             {activeTask.type === 'examination' && <Search size={20} />}
+            {activeTask.type === 'checkin' && <ClipboardCheck size={20} />}
           </div>
           <h2 className="text-lg font-bold sm:text-xl">{activeTask.title}</h2>
         </div>
@@ -116,19 +123,43 @@ export default function AITaskRenderer({
           </div>
         )}
 
-        {activeTask.type === 'checkin' && (
-          <div className="w-full space-y-6 text-center sm:space-y-8">
-            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100 text-hospital-blue sm:mb-6 sm:h-24 sm:w-24">
-              <ClipboardCheck size={40} />
+        {activeTask.type === 'checkin' && (() => {
+          const d = activeTask.data as CheckinData;
+          const callingNumber = d.callingNumber ?? 'A042';
+          const aheadCount = typeof d.aheadCount === 'number' ? d.aheadCount : 5;
+          const waitMinutes = typeof d.waitMinutes === 'number' ? d.waitMinutes : 15;
+          return (
+            <div className="w-full">
+              <div className="overflow-hidden rounded-[1.25rem] bg-[#6338f1] p-5 text-white shadow-lg sm:rounded-3xl sm:p-6">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-white/90">当前叫号</div>
+                    <div className="mt-1 truncate text-5xl font-bold tracking-tight sm:text-6xl">{callingNumber}</div>
+                    {d.department ? (
+                      <div className="mt-2 text-sm text-white/80">{d.department}</div>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-black/15 text-white shadow-inner ring-1 ring-white/20 transition hover:bg-black/25 sm:h-14 sm:w-14"
+                    aria-label="人工服务"
+                  >
+                    <Headset className="h-6 w-6 sm:h-7 sm:w-7" strokeWidth={1.75} />
+                  </button>
+                </div>
+                <div className="my-5 border-t border-white/30 sm:my-6" />
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-[15px] text-white sm:text-base">
+                    前面还有 <span className="text-2xl font-bold sm:text-3xl">{aheadCount}</span> 人
+                  </p>
+                  <div className="w-fit rounded-full bg-black/20 px-4 py-2.5 text-sm font-medium text-white shadow-md ring-1 ring-white/15">
+                    预计等待 约{waitMinutes}分钟
+                  </div>
+                </div>
+              </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 sm:text-3xl">签到候诊</h3>
-            <div className="rounded-3xl border-2 border-hospital-blue bg-white p-6 shadow-sm sm:p-8">
-              <div className="mb-2 text-xs font-bold uppercase tracking-wider text-hospital-blue sm:text-sm">当前候诊</div>
-              <div className="mb-3 text-3xl font-black text-gray-900 sm:mb-4 sm:text-5xl">呼吸内科</div>
-              <div className="text-base text-gray-500 sm:text-xl">前面还有 <span className="font-bold text-hospital-blue">3</span> 人</div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {activeTask.type === 'payment' && (
           <div className="w-full space-y-6 sm:space-y-8">
@@ -379,7 +410,12 @@ export default function AITaskRenderer({
 
       {!preview && ['checkin', 'payment', 'report', 'meds', 'examination'].includes(activeTask.type) && (
         <div className="px-4 pb-4 sm:px-6 sm:pb-6">
-          <button onClick={safeComplete} className="w-full rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg sm:text-lg">
+          <button
+            onClick={safeComplete}
+            className={`w-full rounded-2xl py-4 text-base font-bold text-white shadow-lg sm:text-lg ${
+              activeTask.type === 'checkin' ? 'bg-[#6338f1] hover:bg-[#5630d4]' : 'bg-hospital-blue'
+            }`}
+          >
             完成当前任务
           </button>
         </div>

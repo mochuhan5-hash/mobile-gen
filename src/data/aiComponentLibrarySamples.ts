@@ -77,7 +77,12 @@ export const taskPanelSamples: Array<{ title: string; task: AITask; taskStep?: n
     task: {
       type: 'checkin',
       title: '签到候诊',
-      data: {},
+      data: {
+        callingNumber: 'A042',
+        aheadCount: 5,
+        waitMinutes: 15,
+        department: '呼吸内科门诊',
+      },
     },
   },
   {

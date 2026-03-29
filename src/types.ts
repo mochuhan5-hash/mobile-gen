@@ -77,7 +77,28 @@ export interface ExaminationData {
   title?: string;
 }
 
-export type AIComponentData = MedicalData | ProcessData | LocationData | TipData | RecommendationData | AppointmentData | ExaminationData | Record<string, unknown>;
+/** 签到候诊 / 叫号展示（可选，缺省使用占位数据） */
+export interface CheckinData {
+  /** 当前叫号，如 A042 */
+  callingNumber?: string;
+  /** 前面排队人数 */
+  aheadCount?: number;
+  /** 预计等待分钟数 */
+  waitMinutes?: number;
+  /** 科室名称（展示用） */
+  department?: string;
+}
+
+export type AIComponentData =
+  | MedicalData
+  | ProcessData
+  | LocationData
+  | TipData
+  | RecommendationData
+  | AppointmentData
+  | ExaminationData
+  | CheckinData
+  | Record<string, unknown>;
 
 export interface AIComponentPayload<TType extends AIMessageComponentType | AITaskType = AIMessageComponentType | AITaskType, TData = AIComponentData> {
   type: TType;

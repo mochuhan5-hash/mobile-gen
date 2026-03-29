@@ -52,10 +52,19 @@ import {
 } from './aiTaskFlow';
 import { SCENARIOS, type AppView, type AITask, type JourneyContext, type Message, ScenarioId } from './types';
 
-// Initialize OpenAI client
+const DEFAULT_OPENAI_BASE_URL = 'http://143.198.222.179:8317/v1';
+
+function getOpenAiBaseURL(): string {
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    return `${window.location.origin}/openai-v1`;
+  }
+  return process.env.OPENAI_BASE_URL || DEFAULT_OPENAI_BASE_URL;
+}
+
+// Initialize OpenAI client (dev: same-origin proxy in vite.config to avoid CORS)
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY || "",
-  baseURL: process.env.OPENAI_BASE_URL || "http://143.198.222.179:8317/v1",
+  baseURL: getOpenAiBaseURL(),
   dangerouslyAllowBrowser: true,
 });
 
@@ -186,6 +195,7 @@ export default function App() {
           组件数据结构：
           - medical: { "symptoms": ["症状1"], "recommendation": "科室名", "confidence": 0.9 }
           - appointment: { "department": "科室名", "doctors": [{"name": "医生名", "time": "时间", "fee": "金额"}] }
+          - checkin: { "callingNumber": "A042", "aheadCount": 5, "waitMinutes": 15, "department": "呼吸内科门诊" }（均为可选，缺省用占位）
           - examination: { "items": [{"name": "检查项1", "location": "地点"}] }
           - recommendation: { "type": "checkin", "title": "前往签到", "target": "呼吸内科" }
 
@@ -261,7 +271,11 @@ export default function App() {
       }
     } catch (error) {
       console.error("AI Error:", error);
-      setMessages(prev => [...prev, { role: 'model', text: '抱歉，问诊台系统繁忙，请稍后再试。' }]);
+      const msg =
+        error instanceof OpenAI.APIError && error.status === 401
+          ? "模型网关返回 401（密钥无效）。请把 .env 里的 OPENAI_API_KEY 改成该服务要求的真实密钥，保存后重新执行 npm run dev。"
+          : "抱歉，问诊台系统繁忙，请稍后再试。";
+      setMessages(prev => [...prev, { role: "model", text: msg }]);
     } finally {
       scrollToBottom();
       setIsLoading(false);
