@@ -5,6 +5,7 @@ import {
   buildAiContextSummary,
   buildResumeTaskComponent,
   buildTaskCompletionSummary,
+  buildUserProfileSummary,
   createJourneyContext,
   createTaskFromComponent,
   getInitialTaskStep,
@@ -182,4 +183,45 @@ test('task completion summary should expose default completion screen copy', () 
   assert.equal(summary.followUps.length, 2);
   assert.equal(summary.followUps[0]?.label, '查看后续门诊地点');
   assert.equal(summary.followUps[1]?.label, '打印凭条');
+});
+
+test('user profile summary should include profile, visit history and journey context', () => {
+  const context = createJourneyContext();
+  const summary = buildUserProfileSummary({
+    basicInfo: {
+      name: '张三',
+      age: 34,
+      gender: '男',
+      phone: '13800000000',
+    },
+    healthProfile: {
+      allergies: '青霉素',
+      chronicConditions: '哮喘',
+      notes: '近期夜间咳嗽频繁',
+    },
+    visitRecords: [
+      {
+        id: 'visit-1',
+        date: '2026-03-10',
+        department: '呼吸内科',
+        complaint: '咳嗽两周',
+        diagnosis: '上呼吸道感染',
+        treatment: '开药观察',
+      },
+    ],
+  }, [
+    {
+      id: 'task-1',
+      type: 'checkin',
+      title: '签到候诊',
+      status: 'completed',
+      timestamp: 1710000000000,
+    },
+  ], context);
+
+  assert.match(summary, /张三/);
+  assert.match(summary, /青霉素/);
+  assert.match(summary, /呼吸内科/);
+  assert.match(summary, /签到候诊/);
+  assert.match(summary, /currentJourneyStage/);
 });

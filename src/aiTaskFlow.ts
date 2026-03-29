@@ -8,6 +8,7 @@ import type {
   RecommendationData,
   ResumeTaskData,
   TaskCompletionSummary,
+  UserProfile,
 } from './types';
 
 const TASK_TITLES: Record<AITaskType, string> = {
@@ -234,4 +235,16 @@ export function buildTaskCompletionSummary(_task: AITask): TaskCompletionSummary
       },
     ],
   };
+}
+
+export function buildUserProfileSummary(
+  userProfile: UserProfile,
+  history: Array<{ id: string; type: string; title: string; status: 'completed' | 'pending'; timestamp: number }>,
+  journeyContext: JourneyContext,
+) {
+  return JSON.stringify({
+    userProfile,
+    recentTaskHistory: history,
+    currentJourneyContext: journeyContext,
+  }, null, 2);
 }

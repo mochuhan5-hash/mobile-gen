@@ -8,6 +8,7 @@ interface TopTabsProps {
 const tabs: Array<{ value: AppView; label: string }> = [
   { value: 'business', label: '业务演示' },
   { value: 'library', label: 'AI 组件库' },
+  { value: 'profile', label: '用户档案' },
 ];
 
 export default function TopTabs({ activeView, onChange }: TopTabsProps) {

@@ -39,10 +39,12 @@ import AIMessageRenderer from './components/ai/AIMessageRenderer';
 import AITaskCompletionCard from './components/ai/AITaskCompletionCard';
 import AITaskRenderer from './components/ai/AITaskRenderer';
 import AIComponentLibraryPage from './pages/AIComponentLibraryPage';
+import UserProfilePage from './pages/UserProfilePage';
 import {
   buildAiContextSummary,
   buildResumeTaskComponent,
   buildTaskCompletionSummary,
+  buildUserProfileSummary,
   createJourneyContext,
   getInitialTaskStep,
   recordRecommendation,
@@ -52,7 +54,7 @@ import {
   recordTaskSelection,
   recordTaskStepChange,
 } from './aiTaskFlow';
-import { SCENARIOS, type AppView, type AITask, type JourneyContext, type Message, type RecommendationData, type TaskCompletionSummary, ScenarioId } from './types';
+import { SCENARIOS, type AppView, type AITask, type JourneyContext, type Message, type RecommendationData, type TaskCompletionSummary, type UserProfile, type VisitRecord, ScenarioId } from './types';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -69,6 +71,38 @@ interface TaskRecord {
   timestamp: number;
 }
 
+const defaultUserProfile: UserProfile = {
+  basicInfo: {
+    name: '张三',
+    age: 34,
+    gender: '男',
+    phone: '13800000000',
+  },
+  healthProfile: {
+    allergies: '青霉素过敏',
+    chronicConditions: '轻度哮喘',
+    notes: '近半年反复咳嗽，换季时更明显。',
+  },
+  visitRecords: [
+    {
+      id: 'visit-1',
+      date: '2026-03-10',
+      department: '呼吸内科',
+      complaint: '咳嗽两周',
+      diagnosis: '上呼吸道感染',
+      treatment: '开具止咳药并建议复查',
+    },
+    {
+      id: 'visit-2',
+      date: '2026-01-18',
+      department: '全科门诊',
+      complaint: '夜间胸闷',
+      diagnosis: '哮喘随访',
+      treatment: '调整吸入药物剂量',
+    },
+  ],
+};
+
 export default function App() {
   const [activeView, setActiveView] = useState<AppView>('business');
   const [currentId, setCurrentId] = useState<ScenarioId>(1);
@@ -79,6 +113,7 @@ export default function App() {
   const [taskStep, setTaskStep] = useState(0);
   const [history, setHistory] = useState<TaskRecord[]>([]);
   const [journeyContext, setJourneyContext] = useState<JourneyContext>(() => createJourneyContext());
+  const [userProfile, setUserProfile] = useState<UserProfile>(defaultUserProfile);
   const [taskCompletionSummary, setTaskCompletionSummary] = useState<TaskCompletionSummary | null>(null);
   const [pendingCompletionRecommendation, setPendingCompletionRecommendation] = useState<RecommendationData | null>(null);
 
@@ -142,6 +177,62 @@ export default function App() {
 
   const handleTaskSelection = (selection: Record<string, unknown>) => {
     setJourneyContext((prev: JourneyContext) => recordTaskSelection(prev, selection));
+  };
+
+  const handleBasicInfoChange = (field: keyof UserProfile['basicInfo'], value: string) => {
+    setUserProfile((prev: UserProfile) => ({
+      ...prev,
+      basicInfo: {
+        ...prev.basicInfo,
+        [field]: field === 'age' ? Number(value) || 0 : value,
+      },
+    }));
+  };
+
+  const handleHealthProfileChange = (field: keyof UserProfile['healthProfile'], value: string) => {
+    setUserProfile((prev: UserProfile) => ({
+      ...prev,
+      healthProfile: {
+        ...prev.healthProfile,
+        [field]: value,
+      },
+    }));
+  };
+
+  const handleVisitRecordChange = (id: string, field: keyof VisitRecord, value: string) => {
+    setUserProfile((prev: UserProfile) => ({
+      ...prev,
+      visitRecords: prev.visitRecords.map((record: VisitRecord) => (
+        record.id === id ? { ...record, [field]: value } : record
+      )),
+    }));
+  };
+
+  const handleAddVisitRecord = () => {
+    setUserProfile((prev: UserProfile) => ({
+      ...prev,
+      visitRecords: [
+        ...prev.visitRecords,
+        {
+          id: `visit-${Date.now()}`,
+          date: '2026-03-29',
+          department: '',
+          complaint: '',
+          diagnosis: '',
+          treatment: '',
+        },
+      ],
+    }));
+  };
+
+  const handleGoHome = () => {
+    setActiveView('business');
+    setCurrentId(1);
+    setHasIdentity(false);
+    setActiveTask(null);
+    setTaskStep(0);
+    setTaskCompletionSummary(null);
+    setPendingCompletionRecommendation(null);
   };
 
   const handleSendMessage = async () => {
@@ -209,10 +300,12 @@ export default function App() {
           - 用户完成检查 -> 文本说明已完成，并在 recommendation 中推荐查报告。
           - 不要把“签到 + 缴费 + 检查”在一次回复里一起安排。`;
 
+      const profilePrompt = `当前用户档案(JSON)：\n${buildUserProfileSummary(userProfile, history, contextForPrompt)}`;
       const contextPrompt = `当前就诊上下文(JSON)：\n${buildAiContextSummary(contextForPrompt)}`;
 
       const chatMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
+        { role: "system", content: profilePrompt },
         { role: "system", content: contextPrompt },
         ...messages.map(m => ({
           role: (m.role === 'model' ? 'assistant' : 'user') as 'assistant' | 'user',
@@ -846,7 +939,7 @@ export default function App() {
               <button onClick={() => setCurrentId(9)} className="btn-primary">开始查看路线</button>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
                 <button className="btn-secondary">打印路线</button>
-                <button onClick={() => setCurrentId(1)} className="btn-secondary">返回当前任务</button>
+                <button onClick={handleGoHome} className="btn-secondary">返回当前任务</button>
               </div>
             </div>
           </div>
@@ -890,7 +983,7 @@ export default function App() {
             </div>
 
             <div className="mt-2 flex flex-col gap-3 sm:mt-4 sm:gap-4">
-              <button onClick={() => setCurrentId(1)} className="btn-secondary">
+              <button onClick={handleGoHome} className="btn-secondary">
                 <RotateCcw size={20} /> 重新识别今日事项
               </button>
               <button className="text-sm font-bold text-gray-400 sm:text-base">呼叫帮助</button>
@@ -928,6 +1021,16 @@ export default function App() {
           <div className="flex w-full justify-center">
             <AIComponentLibraryPage />
           </div>
+        ) : activeView === 'profile' ? (
+          <div className="flex w-full justify-center">
+            <UserProfilePage
+              profile={userProfile}
+              onBasicInfoChange={handleBasicInfoChange}
+              onHealthProfileChange={handleHealthProfileChange}
+              onVisitRecordChange={handleVisitRecordChange}
+              onAddVisitRecord={handleAddVisitRecord}
+            />
+          </div>
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
@@ -960,7 +1063,7 @@ export default function App() {
             </button>
             <div className="h-4 w-px bg-gray-200 sm:h-5"></div>
             <button
-              onClick={() => setCurrentId(1)}
+              onClick={handleGoHome}
               className="flex items-center gap-1.5 text-sm font-bold text-gray-500 sm:gap-2 sm:text-base"
             >
               <RotateCcw size={18} /> 返回首页
