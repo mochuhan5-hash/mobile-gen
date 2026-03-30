@@ -91,8 +91,8 @@ export default async function RecommendRegisterPage(props: RecommendRegisterPage
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-[980px] p-4 md:p-6">
-        <div className="rounded-2xl border border-white/20 bg-white/5 p-6">
+      <div className="mx-auto flex min-h-screen max-w-[980px] items-center p-4 md:p-6">
+        <div className="w-full rounded-2xl border border-white/20 bg-white/5 p-6">
           <p className="text-sm text-white/70">{tr(lang, "推荐预约挂号页面", "Registration Recommendation")}</p>
           <h1 className="mt-2 text-[36px] font-black">{tr(lang, "系统已识别您的需求", "Your request has been recognized")}</h1>
           <p className="mt-3 text-[20px] text-white/90">{tr(lang, "输入症状：", "Input symptom: ")}{symptomDisplay}</p>

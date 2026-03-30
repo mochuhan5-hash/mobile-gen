@@ -34,6 +34,10 @@ export default function HomeEntryActions(props: HomeEntryActionsProps) {
     symptom: string;
     department: string;
     selectedDoctor: string;
+    room?: string;
+    callingNumber?: string;
+    aheadCount?: number;
+    waitMinutes?: number;
     syncToken?: string;
   }) => {
     if (typeof window === "undefined") return;
@@ -51,6 +55,10 @@ export default function HomeEntryActions(props: HomeEntryActionsProps) {
           symptom: params.symptom,
           department: params.department,
           selectedDoctor: params.selectedDoctor,
+          room: params.room ?? "",
+          callingNumber: params.callingNumber ?? "",
+          aheadCount: params.aheadCount ?? 0,
+          waitMinutes: params.waitMinutes ?? 0,
           source: "kiosk",
           ts: params.syncToken ? Number(params.syncToken) : Date.now(),
         }),
@@ -123,6 +131,12 @@ export default function HomeEntryActions(props: HomeEntryActionsProps) {
     const symptom = sp.get("symptom") ?? current.symptom;
     const department = sp.get("department") ?? current.department;
     const selectedDoctor = sp.get("selectedDoctor") ?? current.selectedDoctor;
+    const room = sp.get("room") ?? "";
+    const callingNumber = sp.get("callingNumber") ?? "";
+    const aheadCountRaw = Number(sp.get("aheadCount") ?? "");
+    const aheadCount = Number.isFinite(aheadCountRaw) ? aheadCountRaw : 0;
+    const waitMinutesRaw = Number(sp.get("waitMinutes") ?? "");
+    const waitMinutes = Number.isFinite(waitMinutesRaw) ? waitMinutesRaw : 0;
     const patientName = sp.get("patientName") ?? current.patientName;
     const patientAgeRaw = Number(sp.get("patientAge") ?? current.patientAge);
     const patientAge = Number.isFinite(patientAgeRaw) ? patientAgeRaw : current.patientAge;
@@ -143,6 +157,10 @@ export default function HomeEntryActions(props: HomeEntryActionsProps) {
         symptom,
         department,
         selectedDoctor,
+        room,
+        callingNumber,
+        aheadCount,
+        waitMinutes,
         syncToken,
       });
     }

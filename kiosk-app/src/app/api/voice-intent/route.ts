@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildMockJourneyData, recommendBySymptom, Recommendation } from "../../../lib/mock-hospital-data";
 import { getQwenClinicalPlan } from "../../../lib/qwen-clinical-plan";
+import { getDashscopeApiKey } from "../../../lib/ai-config";
 
 type VoiceIntent = "symptom" | "faq";
 type ReplyLang = "zh" | "en";
@@ -699,7 +700,7 @@ export async function POST(req: NextRequest) {
     const context = body.context;
     const text = String(body.text ?? "").trim();
     const lang: ReplyLang = body.lang === "en" ? "en" : "zh";
-    const apiKey = process.env.DASHSCOPE_API_KEY;
+    const apiKey = getDashscopeApiKey();
 
     if (mode === "suggestions") {
       if (apiKey) {

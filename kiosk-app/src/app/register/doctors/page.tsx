@@ -151,8 +151,8 @@ export default async function DoctorsPage(props: DoctorsPageProps) {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-[980px] p-4 md:p-6">
-        <div className="rounded-2xl border border-white/20 bg-white/5 p-6">
+      <div className="mx-auto flex min-h-screen max-w-[980px] items-center p-4 md:p-6">
+        <div className="w-full rounded-2xl border border-white/20 bg-white/5 p-6">
           {!isFollowupMode ? (
             <div className="mt-5">
               <div className="rounded-xl border border-white/15 bg-black/40 p-4">

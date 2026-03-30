@@ -107,18 +107,20 @@ export default async function TaskDetailPage(props: TaskPageProps) {
 
   return (
     <main className="min-h-screen bg-black text-white">
-      <div className="mx-auto max-w-[1200px] p-4 md:p-6">
-        <TaskFlowPanel
-          config={cfg}
-          evidence={evidence}
-          journey={journey}
-          lang={lang}
-          initialStepIndex={initialStepIndex}
-          flowStage={flowStage}
-        />
+      <div className="mx-auto flex min-h-screen max-w-[980px] items-center p-4 md:p-6">
+        <div className="w-full rounded-2xl border border-white/20 bg-white/5 p-4 md:p-6">
+          <TaskFlowPanel
+            config={cfg}
+            evidence={evidence}
+            journey={journey}
+            lang={lang}
+            initialStepIndex={initialStepIndex}
+            flowStage={flowStage}
+          />
 
-        <div className="mt-6">
-          <TaskNavigator currentSlug={cfg.slug} relatedSlugs={aiRelated ?? cfg.related} lang={lang} />
+          <div className="mt-6">
+            <TaskNavigator currentSlug={cfg.slug} relatedSlugs={aiRelated ?? cfg.related} lang={lang} />
+          </div>
         </div>
       </div>
     </main>

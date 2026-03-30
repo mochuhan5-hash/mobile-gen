@@ -1,4 +1,5 @@
 import type { DoctorCandidate, Recommendation } from "./mock-hospital-data";
+import { getDashscopeApiKey } from "./ai-config";
 
 type QwenMessage = {
   role: "system" | "user";
@@ -138,7 +139,7 @@ export async function getQwenClinicalPlan(symptom: string): Promise<AiClinicalPl
   const cached = planCache.get(cacheKey);
   if (cached) return cached;
 
-  const apiKey = process.env.DASHSCOPE_API_KEY;
+  const apiKey = getDashscopeApiKey();
   if (!apiKey) return null;
 
   const messages: QwenMessage[] = [

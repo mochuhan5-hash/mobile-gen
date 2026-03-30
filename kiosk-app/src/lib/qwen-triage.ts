@@ -1,4 +1,5 @@
 import type { Recommendation } from "./mock-hospital-data";
+import { getDashscopeApiKey } from "./ai-config";
 
 type QwenMessage = {
   role: "system" | "user";
@@ -38,7 +39,7 @@ function safeParseJsonFromText(text: string): Record<string, unknown> | null {
  * 若未配置 API Key 或调用失败，会返回 null 由上层走本地规则兜底。
  */
 export async function getQwenTriageRecommendation(symptom: string): Promise<Recommendation | null> {
-  const apiKey = process.env.DASHSCOPE_API_KEY;
+  const apiKey = getDashscopeApiKey();
   if (!apiKey) return null;
   if (!symptom.trim()) return null;
 

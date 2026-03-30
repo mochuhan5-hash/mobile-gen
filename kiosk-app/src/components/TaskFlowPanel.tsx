@@ -293,6 +293,8 @@ export default function TaskFlowPanel(props: TaskFlowPanelProps) {
     });
     const mobileBase = process.env.NEXT_PUBLIC_MOBILE_APP_URL?.trim();
     const syncTs = Date.now();
+    const queueWaitRaw = Number(String(props.journey.queue.estimatedTime).replace(/[^\d]/g, ""));
+    const queueWaitMinutes = Number.isFinite(queueWaitRaw) ? queueWaitRaw : 0;
     if (mobileBase) {
       const endpoint = `${mobileBase.replace(/\/$/, "")}/api/kiosk-stage`;
       const payload = {
@@ -301,6 +303,10 @@ export default function TaskFlowPanel(props: TaskFlowPanelProps) {
         symptom,
         department,
         selectedDoctor: selectedDoctor || current.selectedDoctor,
+        room: props.journey.appointment.room,
+        callingNumber: props.journey.queue.currentNumber,
+        aheadCount: props.journey.queue.waitingCount,
+        waitMinutes: queueWaitMinutes,
         source: "kiosk",
         ts: syncTs,
       };
@@ -326,6 +332,10 @@ export default function TaskFlowPanel(props: TaskFlowPanelProps) {
       symptom,
       department,
       selectedDoctor: selectedDoctor || current.selectedDoctor,
+      room: props.journey.appointment.room,
+      callingNumber: props.journey.queue.currentNumber,
+      aheadCount: String(props.journey.queue.waitingCount),
+      waitMinutes: String(queueWaitMinutes),
       patientName: patientName || current.patientName,
       patientAge,
       patientGender,
