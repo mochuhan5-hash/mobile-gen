@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  AlertCircle,
   Calendar,
   CheckCircle2,
   ChevronRight,
@@ -27,7 +26,6 @@ import type {
   MedsData,
   PaymentData,
   ProcessData,
-  TipData,
 } from '../../types';
 
 /** 费用/检验区块内的浅紫顶栏（仅色块，不再包一层带边框的内层卡片） */
@@ -90,7 +88,6 @@ export default function AITaskRenderer({
             {activeTask.type === 'medical' && <Stethoscope size={20} />}
             {activeTask.type === 'process' && <ClipboardCheck size={20} />}
             {activeTask.type === 'location' && <MapPin size={20} />}
-            {activeTask.type === 'tip' && <AlertCircle size={20} />}
             {activeTask.type === 'payment' && <CreditCard size={20} />}
             {activeTask.type === 'examination' && <ClipboardList size={20} />}
             {activeTask.type === 'checkin' && <ClipboardCheck size={20} />}
@@ -212,19 +209,18 @@ export default function AITaskRenderer({
 
         {activeTask.type === 'checkin' && (() => {
           const d = activeTask.data as CheckinData;
-          const callingNumber = d.callingNumber ?? 'A042';
-          const aheadCount = typeof d.aheadCount === 'number' ? d.aheadCount : 5;
-          const waitMinutes = typeof d.waitMinutes === 'number' ? d.waitMinutes : 15;
+          const department = d.department ?? '呼吸内科门诊';
+          const location = d.location ?? '门诊楼 3 层 A 区';
+          const visitTime = d.visitTime ?? '10:30 - 11:00';
+          const deadline = d.deadline ?? '请在 10:45 前完成签到';
           return (
-            <div className="w-full">
+            <div className="w-full space-y-5">
               <div className="overflow-hidden rounded-[1.25rem] bg-hospital-blue p-5 text-white shadow-lg sm:rounded-3xl sm:p-6">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-white/90">当前叫号</div>
-                    <div className="mt-1 truncate text-5xl font-bold tracking-tight sm:text-6xl">{callingNumber}</div>
-                    {d.department ? (
-                      <div className="mt-2 text-sm text-white/80">{d.department}</div>
-                    ) : null}
+                    <div className="text-sm font-medium text-white/90">签到地点</div>
+                    <div className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{department}</div>
+                    <div className="mt-2 text-sm text-white/80">{location}</div>
                   </div>
                   <button
                     type="button"
@@ -235,12 +231,13 @@ export default function AITaskRenderer({
                   </button>
                 </div>
                 <div className="my-5 border-t border-white/30 sm:my-6" />
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-[15px] text-white sm:text-base">
-                    前面还有 <span className="text-2xl font-bold sm:text-3xl">{aheadCount}</span> 人
-                  </p>
+                <div className="flex flex-col gap-3 sm:gap-4">
+                  <div className="flex items-center justify-between gap-3 text-sm sm:text-base">
+                    <span className="text-white/80">就诊时间</span>
+                    <span className="font-semibold text-white">{visitTime}</span>
+                  </div>
                   <div className="w-fit rounded-full bg-black/20 px-4 py-2.5 text-sm font-medium text-white shadow-md ring-1 ring-white/15">
-                    预计等待 约{waitMinutes}分钟
+                    {deadline}
                   </div>
                 </div>
               </div>
@@ -571,34 +568,17 @@ export default function AITaskRenderer({
           </div>
         )}
 
-        {activeTask.type === 'tip' && (
-          <div className="flex h-full w-full flex-col items-center justify-center space-y-6 text-center sm:space-y-8">
-            <div className={`flex h-24 w-24 items-center justify-center rounded-full sm:h-28 sm:w-28 ${
-              (activeTask.data as TipData).level === 'emergency'
-                ? 'bg-red-100 text-red-600'
-                : (activeTask.data as TipData).level === 'warning'
-                  ? 'bg-yellow-100 text-yellow-600'
-                  : 'bg-blue-100 text-blue-600'
-            }`}>
-              <AlertCircle size={48} />
-            </div>
-            <div>
-              <h3 className="mb-3 text-2xl font-bold text-gray-900 sm:mb-4 sm:text-3xl">{(activeTask.data as TipData).title}</h3>
-              <p className="text-base leading-relaxed text-gray-600 sm:text-xl">{(activeTask.data as TipData).content}</p>
-            </div>
-          </div>
-        )}
       </div>
 
       {!preview &&
-        ['checkin', 'payment', 'report', 'meds', 'examination', 'tip'].includes(activeTask.type) && (
+        ['checkin', 'payment', 'report', 'meds', 'examination'].includes(activeTask.type) && (
           <div className="px-4 pb-4 sm:px-6 sm:pb-6">
             <button
               type="button"
               onClick={safeComplete}
               className="w-full rounded-2xl bg-hospital-blue py-4 text-base font-bold text-white shadow-lg transition hover:brightness-95 sm:text-lg"
             >
-              {activeTask.type === 'tip' ? '知道了' : (flowActionLabel ?? '完成当前任务')}
+              {flowActionLabel ?? '完成当前任务'}
             </button>
           </div>
         )}

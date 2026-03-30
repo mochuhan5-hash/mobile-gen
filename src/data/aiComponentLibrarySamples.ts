@@ -65,10 +65,6 @@ export const taskCompletionSamples: Array<{ title: string; summary: TaskCompleti
       subtitle: '祝你早日康复',
       primaryActionLabel: '完成并退出',
       notice: '请记得取走您的卡片和票据',
-      followUps: [
-        { label: '查看后续门诊地点', icon: 'location', targetId: 7 },
-        { label: '打印凭条', icon: 'print' },
-      ],
     },
   },
 ];

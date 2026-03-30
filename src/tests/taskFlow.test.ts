@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   buildAiContextSummary,
   buildResumeTaskComponent,
+  upsertResumeTaskMessage,
   buildTaskCompletionSummary,
   buildTaskStepTask,
   buildUserProfileSummary,
@@ -172,7 +173,33 @@ test('completion flow should preserve recommendation payload in model message', 
   assert.equal(result.activeTask, null);
 });
 
-test('task completion summary should expose default completion screen copy', () => {
+test('upsertResumeTaskMessage should keep only one latest resume-task message', () => {
+  const first = buildResumeTaskComponent(recordTaskClose(recordTaskOpen(createJourneyContext(), createTaskFromComponent({
+    type: 'appointment',
+    data: { department: '呼吸内科' },
+  }), false)));
+  const second = buildResumeTaskComponent(recordTaskClose(recordTaskOpen(createJourneyContext(), createTaskFromComponent({
+    type: 'checkin',
+    data: { department: '呼吸内科门诊' },
+  }), false)));
+
+  const messages = upsertResumeTaskMessage([
+    { role: 'model', text: '旧消息' },
+    { role: 'model', text: '您已中断当前任务，可随时继续推荐医生挂号缴费。', component: first ?? undefined },
+  ], {
+    role: 'model',
+    text: '您已中断当前任务，可随时继续签到候诊排队。',
+    component: second ?? undefined,
+  });
+
+  assert.equal(messages.length, 2);
+  assert.equal(messages[0]?.text, '旧消息');
+  assert.equal(messages[1]?.text, '您已中断当前任务，可随时继续签到候诊排队。');
+  assert.equal(messages[1]?.component?.type, 'resume_task');
+  assert.equal(messages.filter((message) => message.component?.type === 'resume_task').length, 1);
+});
+
+test('task completion summary should expose default completion screen copy without follow-up suggestions', () => {
   const summary = buildTaskCompletionSummary({
     type: 'appointment',
     title: '预约挂号',
@@ -183,9 +210,7 @@ test('task completion summary should expose default completion screen copy', () 
   assert.equal(summary.subtitle, '祝你早日康复');
   assert.equal(summary.primaryActionLabel, '完成并退出');
   assert.equal(summary.notice, '请记得取走您的卡片和票据');
-  assert.equal(summary.followUps.length, 2);
-  assert.equal(summary.followUps[0]?.label, '查看后续门诊地点');
-  assert.equal(summary.followUps[1]?.label, '打印凭条');
+  assert.ok(!('followUps' in summary));
 });
 
 test('user profile summary should include profile, visit history and journey context', () => {
@@ -247,14 +272,20 @@ test('normalizeTaskForFlow should map standard medical entry components to fixed
   assert.equal(normalizedReport.title, '检查结果打印及建议复诊');
 });
 
-test('getStandardTaskFlow should return configurable skeleton for standard medical tasks', () => {
-  const flow = getStandardTaskFlow('appointment');
+test('getStandardTaskFlow should return configurable skeleton for standard medical tasks without tip steps', () => {
+  const appointmentFlow = getStandardTaskFlow('appointment');
+  const checkinFlow = getStandardTaskFlow('checkin');
+  const examinationFlow = getStandardTaskFlow('examination');
+  const medsFlow = getStandardTaskFlow('meds');
 
-  assert.ok(flow);
-  assert.equal(flow?.taskType, 'appointment');
-  assert.deepEqual(flow?.steps.map((step: { componentType: string }) => step.componentType), ['medical', 'appointment', 'payment', 'tip']);
-  assert.equal(flow?.steps[1]?.confirmLabel, '确认挂号');
-  assert.equal(flow?.steps[2]?.confirmLabel, '去缴费');
+  assert.ok(appointmentFlow);
+  assert.equal(appointmentFlow?.taskType, 'appointment');
+  assert.deepEqual(appointmentFlow?.steps.map((step: { componentType: string }) => step.componentType), ['medical', 'appointment', 'payment']);
+  assert.deepEqual(checkinFlow?.steps.map((step: { componentType: string }) => step.componentType), ['checkin', 'process']);
+  assert.deepEqual(examinationFlow?.steps.map((step: { componentType: string }) => step.componentType), ['examination', 'payment']);
+  assert.deepEqual(medsFlow?.steps.map((step: { componentType: string }) => step.componentType), ['meds', 'payment']);
+  assert.equal(appointmentFlow?.steps[1]?.confirmLabel, '确认挂号');
+  assert.equal(appointmentFlow?.steps[2]?.confirmLabel, '去缴费');
 });
 
 test('buildTaskStepTask should build current step component task from standard flow', () => {
@@ -273,11 +304,43 @@ test('buildTaskStepTask should switch standard flow appointment to payment step 
   const task = buildTaskStepTask({
     type: 'appointment',
     title: '推荐医生挂号缴费',
-    data: { department: '呼吸内科' },
+    data: {
+      department: '呼吸内科',
+      lastSelection: {
+        doctorName: '王主任',
+        time: '今日 14:00',
+        fee: '¥50',
+        location: '2 号诊室',
+      },
+    },
   }, 2);
 
   assert.equal(task?.type, 'payment');
   assert.equal(task?.title, '挂号缴费');
   assert.equal((task?.data as Record<string, unknown>).__standardFlowStepIndex, 2);
   assert.equal((task?.data as Record<string, unknown>).__standardFlowTaskType, 'appointment');
+  assert.deepEqual((task?.data as Record<string, unknown>).lineItems, [
+    { name: '呼吸内科挂号费（王主任）', price: 50 },
+  ]);
+  assert.equal((task?.data as Record<string, unknown>).total, 50);
+});
+
+test('buildTaskStepTask should build checkin step with location and department info', () => {
+  const task = buildTaskStepTask({
+    type: 'checkin',
+    title: '签到候诊排队',
+    data: {
+      department: '呼吸内科门诊',
+      location: '门诊楼 3 层 A 区',
+      visitTime: '10:30 - 11:00',
+      deadline: '请在 10:45 前完成签到',
+    },
+  }, 0);
+
+  assert.equal(task?.type, 'checkin');
+  assert.equal(task?.title, '展示签到信息并确认签到');
+  assert.equal((task?.data as Record<string, unknown>).department, '呼吸内科门诊');
+  assert.equal((task?.data as Record<string, unknown>).location, '门诊楼 3 层 A 区');
+  assert.equal((task?.data as Record<string, unknown>).visitTime, '10:30 - 11:00');
+  assert.equal((task?.data as Record<string, unknown>).deadline, '请在 10:45 前完成签到');
 });

@@ -5,6 +5,7 @@ import type {
   AITaskType,
   CompletedTaskRecord,
   JourneyContext,
+  Message,
   RecommendationData,
   ResumeTaskData,
   StandardTaskFlow,
@@ -33,25 +34,22 @@ const STANDARD_TASK_FLOWS: Record<StandardTaskFlow['taskType'], StandardTaskFlow
       { componentType: 'medical', title: 'AI 根据症状推荐科室与医生', allowAiInsertions: true },
       { componentType: 'appointment', title: '展示医生信息并确认挂号', confirmLabel: '确认挂号', allowAiInsertions: true },
       { componentType: 'payment', title: '挂号缴费', confirmLabel: '去缴费' },
-      { componentType: 'tip', title: '一键打印并完成', confirmLabel: '一键打印' },
     ],
   },
   checkin: {
     taskType: 'checkin',
     title: '签到候诊排队',
     steps: [
-      { componentType: 'checkin', title: '展示签到信息并确认签到', confirmLabel: '确认签到' },
-      { componentType: 'process', title: '候诊中与当前叫号切换', autoAdvance: true, allowAiInsertions: true },
-      { componentType: 'tip', title: '确认当前叫号', confirmLabel: '确认' },
+      { componentType: 'checkin', title: '展示签到信息并确认签到', confirmLabel: '完成' },
+      { componentType: 'process', title: '候诊中与当前叫号切换', confirmLabel: '确认', autoAdvance: true, allowAiInsertions: true },
     ],
   },
   examination: {
     taskType: 'examination',
     title: '检查项目确认并缴费',
     steps: [
-      { componentType: 'examination', title: '展示并确认检查项目', confirmLabel: '去缴费', allowAiInsertions: true },
+      { componentType: 'examination', title: '展示并确认检查项目', confirmLabel: '确认', allowAiInsertions: true },
       { componentType: 'payment', title: '检查缴费', confirmLabel: '去缴费' },
-      { componentType: 'tip', title: '打印检查缴费凭条', confirmLabel: '一键打印' },
     ],
   },
   report: {
@@ -68,7 +66,6 @@ const STANDARD_TASK_FLOWS: Record<StandardTaskFlow['taskType'], StandardTaskFlow
     steps: [
       { componentType: 'meds', title: '展示药品清单并确认', confirmLabel: '去药品缴费', allowAiInsertions: true },
       { componentType: 'payment', title: '药品缴费', confirmLabel: '去缴费' },
-      { componentType: 'tip', title: '药品支付完成', confirmLabel: '完成' },
     ],
   },
 };
@@ -160,19 +157,64 @@ export function buildTaskStepTask(task: AITask, stepIndex: number): AITask | nul
     };
   }
 
-  if (task.type === 'checkin' && step.componentType === 'process') {
+  if (task.type === 'appointment' && step.componentType === 'payment') {
+    const lastSelection = (baseData.lastSelection && typeof baseData.lastSelection === 'object')
+      ? baseData.lastSelection as Record<string, unknown>
+      : {};
+    const selectedDoctorName = (lastSelection.doctorName as string | undefined) ?? '王主任';
+    const selectedDoctorFee = Number(String((lastSelection.fee as string | number | undefined) ?? '50').replace(/[^\d.]/g, '')) || 50;
+    const selectedDepartment = (baseData.department as string | undefined) ?? '呼吸内科';
+
     stepData = {
-      steps: ['签到成功', '候诊中', '当前叫号'],
-      currentStep: 1,
+      lineItems: [
+        {
+          name: `${selectedDepartment}挂号费（${selectedDoctorName}）`,
+          price: selectedDoctorFee,
+        },
+      ],
+      total: selectedDoctorFee,
+      statusLabel: '待支付',
+      ...baseData,
       ...metadata,
     };
   }
 
-  if (task.type === 'examination' && step.componentType === 'tip') {
+  if (task.type === 'checkin' && step.componentType === 'checkin') {
     stepData = {
-      level: 'info',
-      title: '检查费缴费成功',
-      content: '支付已完成，可一键打印检查单据。',
+      department: (baseData.department as string | undefined) ?? '呼吸内科门诊',
+      location: (baseData.location as string | undefined) ?? '门诊楼 3 层 A 区',
+      visitTime: (baseData.visitTime as string | undefined) ?? '10:30 - 11:00',
+      deadline: (baseData.deadline as string | undefined) ?? '请在 10:45 前完成签到',
+      ...baseData,
+      ...metadata,
+    };
+  }
+
+  if (task.type === 'checkin' && step.componentType === 'process') {
+    stepData = {
+      steps: ['签到成功', '候诊中', '当前叫号'],
+      currentStep: 1,
+      ...baseData,
+      ...metadata,
+    };
+  }
+
+  if (task.type === 'examination' && step.componentType === 'payment') {
+    const items = Array.isArray(baseData.items) ? baseData.items as Array<Record<string, unknown>> : [
+      { name: '血常规检查', price: 45 },
+      { name: '胸部 X 光', price: 120 },
+    ];
+    const lineItems = items.map((item) => ({
+      name: String(item.name ?? '检查项目'),
+      price: Number(item.price ?? 0),
+    }));
+    const total = lineItems.reduce((sum, item) => sum + item.price, 0);
+
+    stepData = {
+      lineItems,
+      total,
+      statusLabel: '待支付',
+      ...baseData,
       ...metadata,
     };
   }
@@ -188,11 +230,22 @@ export function buildTaskStepTask(task: AITask, stepIndex: number): AITask | nul
     };
   }
 
-  if (task.type === 'meds' && step.componentType === 'tip') {
+  if (task.type === 'meds' && step.componentType === 'payment') {
+    const medicineItems = Array.isArray(baseData.medicineItems) ? baseData.medicineItems as Array<Record<string, unknown>> : [
+      { name: '阿莫西林胶囊', price: 32.5 },
+      { name: '复方甘草口服液', price: 12.5 },
+    ];
+    const lineItems = medicineItems.map((item) => ({
+      name: String(item.name ?? '药品'),
+      price: Number(item.price ?? 0),
+    }));
+    const total = lineItems.reduce((sum, item) => sum + item.price, 0);
+
     stepData = {
-      level: 'info',
-      title: '药品缴费成功',
-      content: '支付已完成，请前往门诊楼 1 层药房取药。',
+      lineItems,
+      total,
+      statusLabel: '待支付',
+      ...baseData,
       ...metadata,
     };
   }
@@ -393,23 +446,17 @@ export function buildResumeTaskComponent(context: JourneyContext): { type: 'resu
   };
 }
 
+export function upsertResumeTaskMessage(messages: Message[], nextMessage: Message): Message[] {
+  const filteredMessages = messages.filter((message: Message) => message.component?.type !== 'resume_task');
+  return [...filteredMessages, nextMessage];
+}
+
 export function buildTaskCompletionSummary(_task: AITask): TaskCompletionSummary {
   return {
     title: '你当前的主要事项已完成',
     subtitle: '祝你早日康复',
     primaryActionLabel: '完成并退出',
     notice: '请记得取走您的卡片和票据',
-    followUps: [
-      {
-        label: '查看后续门诊地点',
-        icon: 'location',
-        targetId: 7,
-      },
-      {
-        label: '打印凭条',
-        icon: 'print',
-      },
-    ],
   };
 }
 

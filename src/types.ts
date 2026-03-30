@@ -61,18 +61,11 @@ export interface ResumeTaskData {
   task: AITask;
 }
 
-export interface TaskCompletionFollowUp {
-  label: string;
-  icon: 'location' | 'print';
-  targetId?: ScenarioId;
-}
-
 export interface TaskCompletionSummary {
   title: string;
   subtitle: string;
   primaryActionLabel: string;
   notice: string;
-  followUps: TaskCompletionFollowUp[];
 }
 
 export interface DoctorOption {
@@ -125,6 +118,12 @@ export interface CheckinData {
   waitMinutes?: number;
   /** 科室名称（展示用） */
   department?: string;
+  /** 签到地点 */
+  location?: string;
+  /** 就诊时段 */
+  visitTime?: string;
+  /** 截止提醒 */
+  deadline?: string;
 }
 
 /** 支付取药 — 药品清单行（名称 + 单价） */
@@ -168,7 +167,7 @@ export interface AIComponentPayload<TType extends AIMessageComponentType | AITas
 export interface Message {
   role: 'user' | 'model';
   text: string;
-  component?: AIComponentPayload<AIInlineComponentType>;
+  component?: AIComponentPayload<AIMessageComponentType | AIInlineComponentType>;
   recommendation?: RecommendationData;
 }
 

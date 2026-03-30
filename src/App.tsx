@@ -43,6 +43,7 @@ import UserProfilePage from './pages/UserProfilePage';
 import {
   buildAiContextSummary,
   buildResumeTaskComponent,
+  upsertResumeTaskMessage,
   buildTaskCompletionSummary,
   buildTaskStepTask,
   buildUserProfileSummary,
@@ -173,11 +174,11 @@ export default function App() {
     setTaskStep(0);
 
     if (resumeComponent) {
-      setMessages((prev: Message[]) => [...prev, {
+      setMessages((prev: Message[]) => upsertResumeTaskMessage(prev, {
         role: 'model',
         text: `您已中断当前任务，可随时继续${activeTask.title}。`,
         component: resumeComponent,
-      }]);
+      }));
     }
   };
 
@@ -190,6 +191,16 @@ export default function App() {
   };
 
   const handleTaskSelection = (selection: Record<string, unknown>) => {
+    setActiveTask((prev: AITask | null) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        data: {
+          ...(prev.data as Record<string, unknown>),
+          lastSelection: selection,
+        },
+      };
+    });
     setJourneyContext((prev: JourneyContext) => recordTaskSelection(prev, selection));
   };
 
@@ -488,11 +499,6 @@ export default function App() {
                         setPendingCompletionRecommendation(null);
                         setHasIdentity(false);
                         setCurrentId(1);
-                      }}
-                      onFollowUp={(targetId) => {
-                        if (typeof targetId === 'number') {
-                          setCurrentId(targetId as ScenarioId);
-                        }
                       }}
                     />
                   ) : (
@@ -1030,11 +1036,6 @@ export default function App() {
             onPrimaryAction={() => {
               setHasIdentity(false);
               setCurrentId(1);
-            }}
-            onFollowUp={(targetId) => {
-              if (typeof targetId === 'number') {
-                setCurrentId(targetId as ScenarioId);
-              }
             }}
           />
         );

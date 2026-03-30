@@ -1,5 +1,4 @@
 import {
-  AlertCircle,
   Bot,
   CheckCircle2,
   ChevronRight,
@@ -21,7 +20,6 @@ import type {
   ProcessData,
   RecommendationData,
   ResumeTaskData,
-  TipData,
 } from '../../types';
 
 interface AIMessageRendererProps {
@@ -101,23 +99,6 @@ export default function AIMessageRenderer({ component, onOpenTask, preview = fal
               <Navigation size={18} />
             </button>
           </div>
-        </div>
-      );
-    }
-    case 'tip': {
-      const data = component.data as TipData;
-      const colors = {
-        info: 'bg-blue-50 border-blue-100 text-blue-700',
-        warning: 'bg-yellow-50 border-yellow-100 text-yellow-700',
-        emergency: 'bg-red-50 border-red-100 text-red-700',
-      };
-      const colorClass = colors[data.level] || colors.info;
-      return (
-        <div className={`mt-3 rounded-xl border p-3 sm:p-4 ${colorClass}`}>
-          <div className="mb-1 flex items-center gap-2 text-sm font-bold sm:text-base">
-            <AlertCircle size={16} /> {data.title}
-          </div>
-          <div className="text-xs opacity-90 sm:text-sm">{data.content}</div>
         </div>
       );
     }
